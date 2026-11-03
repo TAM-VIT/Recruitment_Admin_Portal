@@ -89,18 +89,9 @@ Recruitment Team`;
         <td style="padding:0 25px;">
             <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                    <td align="center" style="border-top:2px solid #29231d;border-bottom:1px solid #29231d;padding:12px 0 10px;">
-                        <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 8px;">
-                            <tr>
-                                <td align="center">
-                                    <img src="cid:tam-club-logo" alt="The AI &amp; ML Club Logo" width="56" height="54" style="display:block;margin:0 auto;border:0;outline:none;text-decoration:none;max-width:56px;height:auto;" />
-                                </td>
-                            </tr>
-                        </table>
-                        <div style="font-family:'UnifrakturMaguntia','Old English Text MT',Georgia,serif;font-size:52px;line-height:1.2;color:#29231d;">
-                            The TAM Times
-                        </div>
-                        <div style="font-family:'IM Fell English',Georgia,serif;font-size:12px;font-style:italic;color:#71634e;">
+                    <td align="center" style="border-top:2px solid #29231d;border-bottom:1px solid #29231d;padding:16px 0 14px;">
+                        <img src="cid:tam-club-logo" alt="The AI &amp; ML Club Logo" width="105" height="102" style="display:block;margin:0 auto 8px;border:0;outline:none;text-decoration:none;max-width:105px;height:auto;" />
+                        <div style="font-family:'IM Fell English',Georgia,serif;font-size:13px;font-style:italic;color:#71634e;">
                             It's a place for everyone to learn
                         </div>
                     </td>
@@ -281,18 +272,9 @@ Recruitment Team`;
         <td style="padding:0 25px;">
             <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                    <td align="center" style="border-top:2px solid #29231d;border-bottom:1px solid #29231d;padding:12px 0 10px;">
-                        <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 8px;">
-                            <tr>
-                                <td align="center">
-                                    <img src="cid:tam-club-logo" alt="The AI &amp; ML Club Logo" width="56" height="54" style="display:block;margin:0 auto;border:0;outline:none;text-decoration:none;max-width:56px;height:auto;" />
-                                </td>
-                            </tr>
-                        </table>
-                        <div style="font-family:'UnifrakturMaguntia','Old English Text MT',Georgia,serif;font-size:52px;line-height:1.2;color:#29231d;">
-                            The TAM Times
-                        </div>
-                        <div style="font-family:'IM Fell English',Georgia,serif;font-size:12px;font-style:italic;color:#71634e;">
+                    <td align="center" style="border-top:2px solid #29231d;border-bottom:1px solid #29231d;padding:16px 0 14px;">
+                        <img src="cid:tam-club-logo" alt="The AI &amp; ML Club Logo" width="105" height="102" style="display:block;margin:0 auto 8px;border:0;outline:none;text-decoration:none;max-width:105px;height:auto;" />
+                        <div style="font-family:'IM Fell English',Georgia,serif;font-size:13px;font-style:italic;color:#71634e;">
                             It's a place for everyone to learn
                         </div>
                     </td>
