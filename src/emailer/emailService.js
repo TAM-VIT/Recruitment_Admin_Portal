@@ -58,19 +58,19 @@ Recruitment Team`;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${subject}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=IM+Fell+English:ital@0;1&family=Old+Standard+TT:wght@400;700&family=UnifrakturMaguntia&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=IM+Fell+English:ital@0;1&family=Old+Standard+TT:wght@400;700&display=swap" rel="stylesheet">
 </head>
 
 <body style="margin:0;padding:0;background:#211b17;">
 
-<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#211b17" style="padding:25px 10px;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#211b17" style="padding:18px 8px;">
 <tr><td align="center">
 
-<table width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#eee4c9" style="width:100%;max-width:600px;color:#29231d;">
+<table width="640" cellpadding="0" cellspacing="0" border="0" bgcolor="#eee4c9" style="width:100%;max-width:640px;color:#29231d;">
 
     <!-- Newspaper metadata -->
     <tr>
-        <td style="padding:18px 25px 7px;">
+        <td style="padding:12px 20px 6px;">
             <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                     <td style="font-family:'Old Standard TT',Georgia,serif;font-size:10px;letter-spacing:1.5px;color:#514638;">
@@ -86,12 +86,12 @@ Recruitment Team`;
 
     <!-- Masthead -->
     <tr>
-        <td style="padding:0 25px;">
+        <td style="padding:0 20px;">
             <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                    <td align="center" style="border-top:2px solid #29231d;border-bottom:1px solid #29231d;padding:16px 0 14px;">
-                        <img src="cid:tam-club-logo" alt="The AI &amp; ML Club Logo" width="105" height="102" style="display:block;margin:0 auto 8px;border:0;outline:none;text-decoration:none;max-width:105px;height:auto;" />
-                        <div style="font-family:'IM Fell English',Georgia,serif;font-size:13px;font-style:italic;color:#71634e;">
+                    <td align="center" style="border-top:2px solid #29231d;border-bottom:1px solid #29231d;padding:10px 0 8px;">
+                        <img src="cid:tam-club-logo" alt="The AI &amp; ML Club Logo" width="80" height="78" style="display:block;margin:0 auto 5px;border:0;outline:none;text-decoration:none;max-width:80px;height:auto;" />
+                        <div style="font-family:'IM Fell English',Georgia,serif;font-size:12px;font-style:italic;color:#71634e;line-height:1.3;">
                             It's a place for everyone to learn
                         </div>
                     </td>
@@ -102,13 +102,13 @@ Recruitment Team`;
 
     <!-- Edition strip -->
     <tr>
-        <td style="padding:9px 25px 0;">
+        <td style="padding:7px 20px 0;">
             <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #71634e;">
                 <tr>
-                    <td width="50%" align="center" style="padding:7px 3px;font-family:'Old Standard TT',Georgia,serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#514638;border-right:1px solid #71634e;">
+                    <td width="50%" align="center" style="padding:5px 3px;font-family:'Old Standard TT',Georgia,serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#514638;border-right:1px solid #71634e;">
                         CLUB RECRUITMENT
                     </td>
-                    <td width="50%" align="center" style="padding:7px 3px;font-family:'Old Standard TT',Georgia,serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#514638;">
+                    <td width="50%" align="center" style="padding:5px 3px;font-family:'Old Standard TT',Georgia,serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#514638;">
                         SHORTLIST ANNOUNCEMENT
                     </td>
                 </tr>
@@ -118,16 +118,16 @@ Recruitment Team`;
 
     <!-- Headline -->
     <tr>
-        <td align="center" style="padding:28px 25px 15px;">
-            <div style="font-family:'Old Standard TT',Georgia,serif;font-size:11px;font-weight:bold;letter-spacing:0.12em;color:#963d35;margin-bottom:12px;">
+        <td align="center" style="padding:16px 20px 10px;">
+            <div style="font-family:'Old Standard TT',Georgia,serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#963d35;margin-bottom:8px;">
                 ✦ AN ANNOUNCEMENT FROM THE RECRUITMENT DESK ✦
             </div>
 
-            <div style="font-family:'Anton',Impact,sans-serif;font-size:43px;font-weight:400;letter-spacing:-0.01em;line-height:1.08;text-transform:uppercase;color:#963d35;">
+            <div style="font-family:'Anton',Impact,sans-serif;font-size:32px;font-weight:400;letter-spacing:0.02em;line-height:1.15;text-transform:uppercase;color:#963d35;">
                 YOU'VE MADE<br>THE LIST!
             </div>
 
-            <div style="font-family:'IM Fell English',Georgia,serif;font-size:14px;font-style:italic;line-height:1.6;color:#75654e;margin-top:12px;">
+            <div style="font-family:'IM Fell English',Georgia,serif;font-size:13px;font-style:italic;line-height:1.4;color:#75654e;margin-top:6px;">
                 Your journey with TAM moves to its next chapter.
             </div>
         </td>
@@ -135,17 +135,17 @@ Recruitment Team`;
 
     <!-- Divider -->
     <tr>
-        <td style="padding:0 25px;">
-            <div style="border-top:2px solid #29231d;border-bottom:1px solid #29231d;height:3px;"></div>
+        <td style="padding:0 20px;">
+            <div style="border-top:2px solid #29231d;border-bottom:1px solid #29231d;height:2px;font-size:0;line-height:0;">&nbsp;</div>
         </td>
     </tr>
 
     <!-- Message -->
     <tr>
-        <td style="padding:21px 30px;font-family:'IM Fell English',Georgia,serif;font-size:15px;line-height:1.8;color:#30291f;">
-            <p style="margin:0 0 12px;">Dear <strong>${candidateName}</strong>,</p>
+        <td style="padding:14px 22px;font-family:'IM Fell English',Georgia,serif;font-size:14px;line-height:1.65;color:#30291f;">
+            <p style="margin:0 0 9px;">Dear <strong>${candidateName}</strong>,</p>
 
-            <p style="margin:0 0 13px;">
+            <p style="margin:0 0 9px;">
                 We are delighted to inform you that you have been
                 <strong>shortlisted</strong> for the next stage of the TAM recruitment process!
             </p>
@@ -159,19 +159,19 @@ Recruitment Team`;
 
     <!-- Next step bulletin -->
     <tr>
-        <td style="padding:0 25px 18px;">
+        <td style="padding:0 20px 14px;">
             <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #514638;">
                 <tr>
-                    <td align="center" style="padding:9px;background:#ded0ae;border-bottom:1px solid #514638;font-family:'Old Standard TT',Georgia,serif;font-size:11px;font-weight:bold;letter-spacing:0.12em;color:#963d35;">
+                    <td align="center" style="padding:6px 10px;background:#ded0ae;border-bottom:1px solid #514638;font-family:'Old Standard TT',Georgia,serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#963d35;">
                         ✦ WHAT HAPPENS NEXT? ✦
                     </td>
                 </tr>
                 <tr>
-                    <td style="padding:18px;font-family:'IM Fell English',Georgia,serif;color:#30291f;">
-                        <div style="font-size:18px;font-weight:bold;margin-bottom:8px;">
+                    <td style="padding:12px 16px;font-family:'IM Fell English',Georgia,serif;color:#30291f;">
+                        <div style="font-size:16px;font-weight:bold;margin-bottom:4px;">
                             Select your interview slot
                         </div>
-                        <div style="font-size:14px;line-height:1.8;">
+                        <div style="font-size:13px;line-height:1.6;">
                             Log in to your candidate recruitment portal to choose your preferred interview slot with our domain leads.
                         </div>
                     </td>
@@ -182,15 +182,15 @@ Recruitment Team`;
 
     <!-- Closing -->
     <tr>
-        <td style="padding:0 30px 25px;font-family:'IM Fell English',Georgia,serif;color:#30291f;">
-            <p style="font-size:14px;line-height:1.8;margin:0 0 17px;">
+        <td style="padding:0 22px 16px;font-family:'IM Fell English',Georgia,serif;color:#30291f;">
+            <p style="font-size:13px;line-height:1.6;margin:0 0 10px;">
                 If you have any questions or require accommodations, feel free to contact us on WhatsApp.
             </p>
-            <div style="font-size:15px;line-height:1.7;">
+            <div style="font-size:14px;line-height:1.5;">
                 Best regards,<br>
                 <strong>The Recruitment Desk</strong>
             </div>
-            <div style="font-size:12px;font-style:italic;color:#75654e;margin-top:3px;">
+            <div style="font-size:11px;font-style:italic;color:#75654e;margin-top:2px;">
                 AI &amp; ML Club · VIT Vellore
             </div>
         </td>
@@ -198,13 +198,13 @@ Recruitment Team`;
 
     <!-- Footer -->
     <tr>
-        <td style="padding:12px 25px;background:#ded0ae;border-top:2px solid #514638;">
+        <td style="padding:8px 20px;background:#ded0ae;border-top:2px solid #514638;">
             <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                    <td style="font-family:'Old Standard TT',Georgia,serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#514638;">
+                    <td style="font-family:'Old Standard TT',Georgia,serif;font-size:9px;font-weight:bold;letter-spacing:0.12em;color:#514638;">
                         THE TAM TIMES
                     </td>
-                    <td align="right" style="font-family:'Old Standard TT',Georgia,serif;font-size:10px;letter-spacing:0.12em;color:#514638;">
+                    <td align="right" style="font-family:'Old Standard TT',Georgia,serif;font-size:9px;letter-spacing:0.12em;color:#514638;">
                         RECRUITMENT DESK
                     </td>
                 </tr>
@@ -241,19 +241,19 @@ Recruitment Team`;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${subject}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=IM+Fell+English:ital@0;1&family=Old+Standard+TT:wght@400;700&family=UnifrakturMaguntia&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=IM+Fell+English:ital@0;1&family=Old+Standard+TT:wght@400;700&display=swap" rel="stylesheet">
 </head>
 
 <body style="margin:0;padding:0;background:#211b17;">
 
-<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#211b17" style="padding:25px 10px;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#211b17" style="padding:18px 8px;">
 <tr><td align="center">
 
-<table width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#eee4c9" style="width:100%;max-width:600px;color:#29231d;">
+<table width="640" cellpadding="0" cellspacing="0" border="0" bgcolor="#eee4c9" style="width:100%;max-width:640px;color:#29231d;">
 
     <!-- Newspaper metadata -->
     <tr>
-        <td style="padding:18px 25px 7px;">
+        <td style="padding:12px 20px 6px;">
             <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                     <td style="font-family:'Old Standard TT',Georgia,serif;font-size:10px;letter-spacing:1.5px;color:#514638;">
@@ -269,12 +269,12 @@ Recruitment Team`;
 
     <!-- Masthead -->
     <tr>
-        <td style="padding:0 25px;">
+        <td style="padding:0 20px;">
             <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                    <td align="center" style="border-top:2px solid #29231d;border-bottom:1px solid #29231d;padding:16px 0 14px;">
-                        <img src="cid:tam-club-logo" alt="The AI &amp; ML Club Logo" width="105" height="102" style="display:block;margin:0 auto 8px;border:0;outline:none;text-decoration:none;max-width:105px;height:auto;" />
-                        <div style="font-family:'IM Fell English',Georgia,serif;font-size:13px;font-style:italic;color:#71634e;">
+                    <td align="center" style="border-top:2px solid #29231d;border-bottom:1px solid #29231d;padding:10px 0 8px;">
+                        <img src="cid:tam-club-logo" alt="The AI &amp; ML Club Logo" width="80" height="78" style="display:block;margin:0 auto 5px;border:0;outline:none;text-decoration:none;max-width:80px;height:auto;" />
+                        <div style="font-family:'IM Fell English',Georgia,serif;font-size:12px;font-style:italic;color:#71634e;line-height:1.3;">
                             It's a place for everyone to learn
                         </div>
                     </td>
@@ -285,13 +285,13 @@ Recruitment Team`;
 
     <!-- Edition strip -->
     <tr>
-        <td style="padding:9px 25px 0;">
+        <td style="padding:7px 20px 0;">
             <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #71634e;">
                 <tr>
-                    <td width="50%" align="center" style="padding:7px 3px;font-family:'Old Standard TT',Georgia,serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#514638;border-right:1px solid #71634e;">
+                    <td width="50%" align="center" style="padding:5px 3px;font-family:'Old Standard TT',Georgia,serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#514638;border-right:1px solid #71634e;">
                         CLUB RECRUITMENT
                     </td>
-                    <td width="50%" align="center" style="padding:7px 3px;font-family:'Old Standard TT',Georgia,serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#514638;">
+                    <td width="50%" align="center" style="padding:5px 3px;font-family:'Old Standard TT',Georgia,serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#514638;">
                         APPLICATION UPDATE
                     </td>
                 </tr>
@@ -301,16 +301,16 @@ Recruitment Team`;
 
     <!-- Headline -->
     <tr>
-        <td align="center" style="padding:28px 25px 15px;">
-            <div style="font-family:'Old Standard TT',Georgia,serif;font-size:11px;font-weight:bold;letter-spacing:0.12em;color:#75654e;margin-bottom:12px;">
+        <td align="center" style="padding:16px 20px 10px;">
+            <div style="font-family:'Old Standard TT',Georgia,serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#75654e;margin-bottom:8px;">
                 A MESSAGE FROM THE RECRUITMENT DESK
             </div>
 
-            <div style="font-family:'Anton',Impact,sans-serif;font-size:40px;font-weight:400;letter-spacing:-0.01em;line-height:1.1;text-transform:uppercase;color:#29231d;">
+            <div style="font-family:'Anton',Impact,sans-serif;font-size:30px;font-weight:400;letter-spacing:0.02em;line-height:1.15;text-transform:uppercase;color:#29231d;">
                 EVERY STORY<br>HAS ITS CHAPTER.
             </div>
 
-            <div style="font-family:'IM Fell English',Georgia,serif;font-size:14px;font-style:italic;line-height:1.6;color:#75654e;margin-top:12px;">
+            <div style="font-family:'IM Fell English',Georgia,serif;font-size:13px;font-style:italic;line-height:1.4;color:#75654e;margin-top:6px;">
                 An update regarding your TAM recruitment application.
             </div>
         </td>
@@ -318,43 +318,41 @@ Recruitment Team`;
 
     <!-- Divider -->
     <tr>
-        <td style="padding:0 25px;">
-            <div style="border-top:2px solid #29231d;border-bottom:1px solid #29231d;height:3px;"></div>
+        <td style="padding:0 20px;">
+            <div style="border-top:2px solid #29231d;border-bottom:1px solid #29231d;height:2px;font-size:0;line-height:0;">&nbsp;</div>
         </td>
     </tr>
 
     <!-- Message -->
     <tr>
-        <td style="padding:21px 30px;font-family:'IM Fell English',Georgia,serif;font-size:15px;line-height:1.85;color:#30291f;">
+        <td style="padding:14px 22px;font-family:'IM Fell English',Georgia,serif;font-size:14px;line-height:1.65;color:#30291f;">
+            <p style="margin:0 0 9px;">Dear <strong>${candidateName}</strong>,</p>
 
-            <p style="margin:0 0 12px;">Dear <strong>${candidateName}</strong>,</p>
-
-            <p style="margin:0 0 14px;">
+            <p style="margin:0 0 9px;">
                 Thank you for your interest in the TAM recruitment drive and for taking the time to share your application with us.
             </p>
 
-            <p style="margin:0 0 14px;">
+            <p style="margin:0 0 9px;">
                 We received an exceptionally large number of applications this season. After careful consideration, we regret to inform you that we will not be moving forward with your application for this recruitment cycle.
             </p>
 
-            <p style="margin:0 0 14px;">
+            <p style="margin:0 0 9px;">
                 This was a highly competitive process, and this outcome does not diminish your abilities, efforts, or potential. We genuinely appreciate the enthusiasm you showed in being a part of TAM.
             </p>
 
             <p style="margin:0;">
                 We hope this is not the end of your story with us. We warmly encourage you to apply again in future recruitment cycles.
             </p>
-
         </td>
     </tr>
 
     <!-- Editorial quote -->
     <tr>
-        <td style="padding:0 25px 20px;">
+        <td style="padding:0 20px 14px;">
             <table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #514638;border-bottom:1px solid #514638;">
                 <tr>
-                    <td align="center" style="padding:19px 15px;">
-                        <div style="font-family:'IM Fell English',Georgia,serif;font-size:18px;font-style:italic;line-height:1.6;color:#514638;">
+                    <td align="center" style="padding:10px 14px;">
+                        <div style="font-family:'IM Fell English',Georgia,serif;font-size:15px;font-style:italic;line-height:1.5;color:#514638;">
                             "Every opportunity is a chance to learn, grow, and begin again."
                         </div>
                     </td>
@@ -365,15 +363,15 @@ Recruitment Team`;
 
     <!-- Closing -->
     <tr>
-        <td style="padding:0 30px 25px;font-family:'IM Fell English',Georgia,serif;color:#30291f;">
-            <p style="font-size:14px;line-height:1.8;margin:0 0 17px;">
+        <td style="padding:0 22px 16px;font-family:'IM Fell English',Georgia,serif;color:#30291f;">
+            <p style="font-size:13px;line-height:1.6;margin:0 0 10px;">
                 We wish you every success in your academic and professional journey. Thank you once again for considering TAM.
             </p>
-            <div style="font-size:15px;line-height:1.7;">
+            <div style="font-size:14px;line-height:1.5;">
                 Warm regards,<br>
                 <strong>The Recruitment Desk</strong>
             </div>
-            <div style="font-size:12px;font-style:italic;color:#75654e;margin-top:3px;">
+            <div style="font-size:11px;font-style:italic;color:#75654e;margin-top:2px;">
                 AI &amp; ML Club · VIT Vellore
             </div>
         </td>
@@ -381,13 +379,13 @@ Recruitment Team`;
 
     <!-- Footer -->
     <tr>
-        <td style="padding:12px 25px;background:#ded0ae;border-top:2px solid #514638;">
+        <td style="padding:8px 20px;background:#ded0ae;border-top:2px solid #514638;">
             <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                    <td style="font-family:'Old Standard TT',Georgia,serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#514638;">
+                    <td style="font-family:'Old Standard TT',Georgia,serif;font-size:9px;font-weight:bold;letter-spacing:0.12em;color:#514638;">
                         THE TAM TIMES
                     </td>
-                    <td align="right" style="font-family:'Old Standard TT',Georgia,serif;font-size:10px;letter-spacing:0.12em;color:#514638;">
+                    <td align="right" style="font-family:'Old Standard TT',Georgia,serif;font-size:9px;letter-spacing:0.12em;color:#514638;">
                         RECRUITMENT DESK
                     </td>
                 </tr>

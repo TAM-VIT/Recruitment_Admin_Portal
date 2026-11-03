@@ -1243,7 +1243,7 @@ export default function AdminPortal() {
                     <input
                       type="text"
                       required
-                      placeholder="head1@gmail.com, head2@gmail.com"
+                      placeholder="jhon.doe2023@gmail.com"
                       value={assignEmails}
                       onChange={(e) => setAssignEmails(e.target.value)}
                       className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs"

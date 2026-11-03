@@ -4,14 +4,14 @@
  * Expected Schema:
  * {
  *   "name": "Candidate Name",
- *   "email": "candidate@example.com",
+ *   "email": "jhon.doe2023@example.com",
  *   "shortlisted": true | false
  * }
  *
  * Also accepts legacy format:
  * {
  *   "name": "Candidate Name",
- *   "email": "candidate@example.com",
+ *   "email": "jhon.doe2023@example.com",
  *   "status": "shortlisted" | "not shortlisted"
  * }
  *
