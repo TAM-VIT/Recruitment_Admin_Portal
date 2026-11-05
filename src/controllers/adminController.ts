@@ -15,6 +15,11 @@ const { prepareEmail: prepareDesignedEmail } = require('../emailer/emailService'
 // names come from students' own sign-up forms, so escape them before they go into HTML
 const escapeHtml = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+// MongoDB: a field that was never written is "missing", which a plain `field: null` filter does NOT match.
+// Applications are created by the student backend without the round1 fields, so "not decided / not
+// emailed yet" must match both null and missing.
+const isEmpty = (field: string) => ({ OR: [{ [field]: null }, { [field]: { isSet: false } }] });
+
 const sameText = (a: string, b: string) => a.replace(/\r\n/g, '\n').trim() === b.replace(/\r\n/g, '\n').trim();
 
 export const DEFAULT_TEMPLATES = {
@@ -761,8 +766,7 @@ export const getRound1Summary = async (req: CustomRequest, res: Response) => {
         where: {
           ...baseWhere,
           stage: Stage.FORM_FILLING,
-          round1Decision: null,
-          round1EmailSentAt: null,
+          AND: [isEmpty('round1Decision'), isEmpty('round1EmailSentAt')],
         },
       }),
       prisma.application.count({
@@ -770,7 +774,7 @@ export const getRound1Summary = async (req: CustomRequest, res: Response) => {
           ...baseWhere,
           stage: Stage.FORM_FILLING,
           round1Decision: Round1Decision.SHORTLIST,
-          round1EmailSentAt: null,
+          ...isEmpty('round1EmailSentAt'),
         },
       }),
       prisma.application.count({
@@ -778,7 +782,7 @@ export const getRound1Summary = async (req: CustomRequest, res: Response) => {
           ...baseWhere,
           stage: Stage.FORM_FILLING,
           round1Decision: Round1Decision.REJECT,
-          round1EmailSentAt: null,
+          ...isEmpty('round1EmailSentAt'),
         },
       }),
       prisma.application.count({
@@ -914,7 +918,7 @@ export const sendRound1Emails = async (req: CustomRequest, res: Response) => {
         submittedAt: { not: null },
         stage: Stage.FORM_FILLING,
         round1Decision: targetDecision,
-        round1EmailSentAt: null,
+        ...isEmpty('round1EmailSentAt'),
         emails: {
           none: {
             type: emailType,
@@ -935,7 +939,7 @@ export const sendRound1Emails = async (req: CustomRequest, res: Response) => {
         submittedAt: { not: null },
         stage: Stage.FORM_FILLING,
         round1Decision: targetDecision,
-        round1EmailSentAt: null,
+        ...isEmpty('round1EmailSentAt'),
       },
     });
 
