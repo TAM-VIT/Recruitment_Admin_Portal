@@ -20,6 +20,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Interview Ledger", href: "/interviews" },
   { label: "Slot Planner", href: "/slots" },
   { label: "The Masthead (Team)", href: "/team", rootOnly: true },
+  { label: "Settings", href: "/settings", rootOnly: true },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {

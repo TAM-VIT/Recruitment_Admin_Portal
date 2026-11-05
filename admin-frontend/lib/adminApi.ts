@@ -10,6 +10,11 @@ import {
   DomainEnum,
   Subsection,
   Question,
+  TeamMember,
+  Round2Group,
+  Round2Summary,
+  Round2SendResult,
+  RecruitmentSettings,
 } from "./types";
 
 const getAuthHeaders = (): HeadersInit => {
@@ -236,11 +241,18 @@ export const adminApi = {
     return handleResponse<{ success: boolean }>(res);
   },
 
-  async getDomainHeads(): Promise<any[]> {
+  async getDomainHeads(): Promise<TeamMember[]> {
     const res = await fetch("/api/admin/domain-heads", {
       headers: getAuthHeaders(),
     });
-    return handleResponse<any[]>(res);
+    const admins = await handleResponse<any[]>(res);
+    // the backend reports hasPassword; "claimed" means they've set their password
+    return admins.map((a) => ({
+      ...a,
+      name: a.name || "",
+      claimed: Boolean(a.hasPassword),
+      setupCode: a.setupCode ?? null,
+    }));
   },
 
   async addDomainHeads(
@@ -292,28 +304,35 @@ export const adminApi = {
     return handleResponse(res);
   },
 
-  async releaseShortlistBatch(domain: string): Promise<{ success: boolean; shortlisted: number; rejected: number; message: string }> {
-    const res = await fetch("/api/admin/applicants/release-shortlist", {
-      method: "POST",
+  // Round 2 (after the interview): Selected / Not selected lists with each candidate's email status
+  async getRound2Summary(domain: string = "ALL"): Promise<Round2Summary> {
+    const res = await fetch(`/api/admin/round2/summary?domain=${encodeURIComponent(domain)}`, {
       headers: getAuthHeaders(),
-      body: JSON.stringify({ domain }),
     });
-    return handleResponse(res);
+    return handleResponse<Round2Summary>(res);
   },
 
-  async sendResultEmails(domain: string, group: "SHORTLISTED" | "REJECTED" | "SELECTED" | "FINAL_REJECTED"): Promise<any> {
-    const res = await fetch("/api/admin/applicants/send-result-emails", {
+  // Emails everyone in that list who hasn't had it yet; pressing again retries failures
+  async sendRound2Emails(domain: string, group: Round2Group): Promise<Round2SendResult> {
+    const res = await fetch("/api/admin/round2/send", {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify({ domain, group }),
     });
-    return handleResponse(res);
+    return handleResponse<Round2SendResult>(res);
+  },
+  // Recruitment settings: whether applications are open and the form deadline
+  async getRecruitmentSettings(): Promise<RecruitmentSettings> {
+    const res = await fetch("/api/admin/settings", { headers: getAuthHeaders() });
+    return handleResponse<RecruitmentSettings>(res);
   },
 
-  async getResultLists(): Promise<any> {
-    const res = await fetch("/api/admin/applicants/results", {
+  async updateRecruitmentSettings(payload: { isOpen?: boolean; formDeadline?: string }): Promise<RecruitmentSettings> {
+    const res = await fetch("/api/admin/settings", {
+      method: "PUT",
       headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
     });
-    return handleResponse(res);
+    return handleResponse<RecruitmentSettings>(res);
   },
 };

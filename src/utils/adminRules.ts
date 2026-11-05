@@ -12,14 +12,20 @@ export class HttpError extends Error {
   }
 }
 
-// Stage moves an admin may make. Flexible transitions allowed for domain heads / root admins.
+// Stage moves an admin may make through PUT /applicants/:id/review. They cover every button on the
+// admin site while keeping stages consistent with the student backend:
+// - FORM_FILLING only moves on through the Round 1 decision + email dispatch (sendRound1Emails)
+// - SLOT_CHOOSING -> INTERVIEW only happens when the student books a slot (student backend)
+// - after the interview: Selected / Rejected / sent back to slot choosing, and Selected <-> Rejected
+// - a rejection can be undone back to slot choosing if the candidate was never interviewed
+// changeStage adds the "interviewed or not" conditions.
 export const ALLOWED_STAGE_MOVES: Record<Stage, Stage[]> = {
-  FORM_FILLING: [Stage.SHORTLISTED, Stage.SLOT_CHOOSING, Stage.INTERVIEW, Stage.SELECTED, Stage.REJECTED],
-  SHORTLISTED: [Stage.FORM_FILLING, Stage.SLOT_CHOOSING, Stage.INTERVIEW, Stage.SELECTED, Stage.REJECTED],
-  SLOT_CHOOSING: [Stage.FORM_FILLING, Stage.SHORTLISTED, Stage.INTERVIEW, Stage.SELECTED, Stage.REJECTED],
-  INTERVIEW: [Stage.FORM_FILLING, Stage.SHORTLISTED, Stage.SLOT_CHOOSING, Stage.SELECTED, Stage.REJECTED],
-  SELECTED: [Stage.FORM_FILLING, Stage.SHORTLISTED, Stage.SLOT_CHOOSING, Stage.INTERVIEW, Stage.REJECTED],
-  REJECTED: [Stage.FORM_FILLING, Stage.SHORTLISTED, Stage.SLOT_CHOOSING, Stage.INTERVIEW, Stage.SELECTED],
+  FORM_FILLING: [],
+  SHORTLISTED: [Stage.SLOT_CHOOSING, Stage.REJECTED],
+  SLOT_CHOOSING: [Stage.REJECTED],
+  INTERVIEW: [Stage.SELECTED, Stage.REJECTED, Stage.SLOT_CHOOSING],
+  SELECTED: [Stage.REJECTED],
+  REJECTED: [Stage.SELECTED, Stage.SLOT_CHOOSING],
 };
 
 export const MAX_REVIEW2_MARKS = 10;
@@ -30,7 +36,6 @@ export const DIVISION_LABELS: Record<DomainType, string> = {
   DESIGN: "Design",
   MARKETING: "Marketing",
   R_AND_D: "Research & Development",
-  EDITORIAL: "Editorial",
 };
 
 // Root admins can act on any domain; heads only on their own
@@ -41,11 +46,13 @@ export function assertDomainAccess(admin: Admin, domain: DomainType) {
   }
 }
 
-// Enforces domain access and frees the slot when a candidate is moved away from interview/booking.
+// Enforces domain access and the moves above. Frees the candidate's slot when they're sent back to
+// slot choosing, or rejected before their interview time (so someone else can book it). A booking whose
+// interview already happened is kept as the record.
 export async function changeStage(applicationId: string, to: Stage, admin: Admin) {
   const app = await prisma.application.findUnique({
     where: { id: applicationId },
-    include: { booking: true },
+    include: { booking: { include: { slot: true } } },
   });
   if (!app) throw new HttpError(404, "Application not found", "APPLICATION_NOT_FOUND");
   assertDomainAccess(admin, app.domain);
@@ -54,8 +61,20 @@ export async function changeStage(applicationId: string, to: Stage, admin: Admin
     return app;
   }
 
-  // Free the booking if moving to REJECTED, FORM_FILLING, or SLOT_CHOOSING
-  const freeSlot = app.booking && (to === "REJECTED" || to === "FORM_FILLING" || to === "SLOT_CHOOSING");
+  if (!ALLOWED_STAGE_MOVES[app.stage].includes(to)) {
+    throw new HttpError(409, `Can't move a candidate from ${app.stage} to ${to}`, "INVALID_STAGE_CHANGE");
+  }
+
+  const interviewDone = !!app.booking && app.booking.slot.startTime <= new Date();
+  const interviewed = interviewDone || app.review2Marks !== null;
+  if (app.stage === "REJECTED" && to === "SELECTED" && !interviewed) {
+    throw new HttpError(409, "Only a candidate who was interviewed can be selected", "NOT_INTERVIEWED");
+  }
+  if (app.stage === "REJECTED" && to === "SLOT_CHOOSING" && interviewed) {
+    throw new HttpError(409, "This candidate was already interviewed", "ALREADY_INTERVIEWED");
+  }
+
+  const freeSlot = app.booking && (to === "SLOT_CHOOSING" || (to === "REJECTED" && !interviewDone));
 
   return prisma.$transaction(async (tx) => {
     if (freeSlot && app.booking) {

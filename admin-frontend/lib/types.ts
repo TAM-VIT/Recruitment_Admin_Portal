@@ -5,7 +5,6 @@ export type DomainEnum =
   | "MARKETING"
   | "R_AND_D"
   | "MANAGEMENT"
-  | "EDITORIAL"
   | "TECHNICAL";
 
 export type ApplicationStage =
@@ -21,7 +20,6 @@ export const DOMAIN_LABELS: Record<DomainEnum, string> = {
   MARKETING: "Marketing",
   R_AND_D: "Research & Development",
   MANAGEMENT: "Management",
-  EDITORIAL: "Editorial",
   TECHNICAL: "Tech",
 };
 
@@ -30,7 +28,6 @@ export const DOMAIN_SHORT_LABELS: Record<DomainEnum, string> = {
   MARKETING: "Marketing",
   R_AND_D: "R&D",
   MANAGEMENT: "Management",
-  EDITORIAL: "Editorial",
   TECHNICAL: "Tech",
 };
 
@@ -39,7 +36,6 @@ export const DOMAINS: DomainEnum[] = [
   "MARKETING",
   "R_AND_D",
   "MANAGEMENT",
-  "EDITORIAL",
   "TECHNICAL",
 ];
 
@@ -52,13 +48,16 @@ export const STAGE_LABELS: Record<ApplicationStage, string> = {
   REJECTED: "Rejected",
 };
 
+// Same as the backend's ALLOWED_STAGE_MOVES (src/utils/adminRules.ts). FORM_FILLING moves on only
+// through the Round 1 decision + email dispatch, and SLOT_CHOOSING -> INTERVIEW only when the student
+// books a slot. Leaving SELECTED/REJECTED has extra conditions the backend checks (interviewed or not).
 export const ALLOWED_STAGE_MOVES: Record<ApplicationStage, ApplicationStage[]> = {
-  FORM_FILLING: ["SHORTLISTED", "REJECTED"],
+  FORM_FILLING: [],
   SHORTLISTED: ["SLOT_CHOOSING", "REJECTED"],
   SLOT_CHOOSING: ["REJECTED"],
   INTERVIEW: ["SELECTED", "REJECTED", "SLOT_CHOOSING"],
-  SELECTED: [],
-  REJECTED: [],
+  SELECTED: ["REJECTED"],
+  REJECTED: ["SELECTED", "SLOT_CHOOSING"],
 };
 
 export function getDisplayStage(app?: {
@@ -88,6 +87,42 @@ export interface TeamMember {
   domain?: DomainEnum | null;
   name: string;
   claimed: boolean;
+  // one-time code for "Create First-Time Password"; only present until they set a password
+  setupCode?: string | null;
+}
+
+// Round 2 (after the interview) result emails
+export type Round2Group = "SELECTED" | "NOT_SELECTED";
+
+export interface Round2Candidate {
+  applicationId: string;
+  domain: DomainEnum;
+  name: string;
+  email: string;
+  regNumber: string;
+  review2Marks: number | null;
+  emailStatus: "SENT" | "FAILED" | "NOT_SENT";
+  emailSentAt: string | null;
+  emailError: string | null;
+}
+
+export interface Round2Summary {
+  domain: DomainEnum | "ALL";
+  selected: Round2Candidate[];
+  notSelected: Round2Candidate[];
+}
+
+export interface Round2SendResult {
+  sent: number;
+  failed: Array<{ applicationId: string; reason: string }>;
+  alreadySent: number;
+  message: string;
+}
+
+export interface RecruitmentSettings {
+  isOpen: boolean | null;
+  formDeadline: string | null;
+  updatedAt: string | null;
 }
 
 export interface AuthResponse {

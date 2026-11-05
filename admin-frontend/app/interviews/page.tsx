@@ -7,6 +7,7 @@ import { AdminShell } from "@/components/AdminShell";
 import { Num } from "@/components/Num";
 import { Skeleton } from "@/components/Skeleton";
 import { EmptyState } from "@/components/EmptyState";
+import { Round2ResultsPanel } from "@/components/Round2ResultsPanel";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/components/TickerToast";
 import { api } from "@/lib/client";
@@ -275,6 +276,9 @@ function InterviewLedgerContent() {
           </div>
         )}
       </div>
+
+      {/* Round 2 result emails (Selected / Not selected) for the chosen division */}
+      <Round2ResultsPanel domain={selectedDomain} />
 
       {/* Tabs */}
       <div

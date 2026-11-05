@@ -7,8 +7,10 @@ export interface CustomRequest extends Request {
   user?: Admin;
 }
 
-// The one secret admin login tokens are signed and checked with.
-export const getJwtSecret = (): string => process.env.JWT_SECRET || process.env.ADMIN_JWT_SECRET || 'tam_vit_admin_recruitment_portal_jwt_secret_super_secure_2026';
+// The one secret admin login tokens and setup codes are signed with. There is deliberately no
+// built-in fallback: this repo is public, so a fallback written here would let anyone sign their own
+// admin token. JWT_SECRET must be set (different from the student backend's).
+export const getJwtSecret = (): string | undefined => process.env.JWT_SECRET || process.env.ADMIN_JWT_SECRET || undefined;
 
 // First-time setup code for an admin email. Only someone who was given it can set that admin's
 // password, so knowing an assigned email isn't enough. It's derived from the email and the JWT secret,
