@@ -388,6 +388,14 @@ Recruitment Team`;
 `.trim();
     }
 
+    // Optional: turn "Log in to your candidate recruitment portal" into a link to the student site
+    if (isShortlisted && typeof applicant.portalUrl === "string" && /^https?:\/\/[^\s"'<>]+$/.test(applicant.portalUrl)) {
+        html = html.replace(
+            "Log in to your candidate recruitment portal",
+            `<a href="${applicant.portalUrl}" style="color:#38BDF8;text-decoration:underline;">Log in to your candidate recruitment portal</a>`
+        );
+    }
+
     const attachments = [];
     if (fs.existsSync(LOGO_PATH)) {
         attachments.push({
