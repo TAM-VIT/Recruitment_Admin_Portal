@@ -4,6 +4,7 @@ export type DomainEnum =
   | "DESIGN"
   | "MARKETING"
   | "R_AND_D"
+  | "EDITORIAL"
   | "MANAGEMENT"
   | "TECHNICAL";
 
@@ -19,6 +20,7 @@ export const DOMAIN_LABELS: Record<DomainEnum, string> = {
   DESIGN: "Design",
   MARKETING: "Marketing",
   R_AND_D: "Research & Development",
+  EDITORIAL: "Editorial",
   MANAGEMENT: "Management",
   TECHNICAL: "Tech",
 };
@@ -27,6 +29,7 @@ export const DOMAIN_SHORT_LABELS: Record<DomainEnum, string> = {
   DESIGN: "Design",
   MARKETING: "Marketing",
   R_AND_D: "R&D",
+  EDITORIAL: "Editorial",
   MANAGEMENT: "Management",
   TECHNICAL: "Tech",
 };
@@ -35,6 +38,7 @@ export const DOMAINS: DomainEnum[] = [
   "DESIGN",
   "MARKETING",
   "R_AND_D",
+  "EDITORIAL",
   "MANAGEMENT",
   "TECHNICAL",
 ];

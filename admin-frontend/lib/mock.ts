@@ -81,6 +81,15 @@ function getInitialStore(): MockStore {
       claimed: true,
     },
     {
+      id: "admin-head-editorial",
+      email: "editorial.head@tam.vit.ac.in",
+      role: "DOMAIN_HEAD",
+      domain: "EDITORIAL",
+      name: "Penelope Feather",
+      passwordHash: "password123",
+      claimed: true,
+    },
+    {
       id: "admin-head-management",
       email: "management.head@tam.vit.ac.in",
       role: "DOMAIN_HEAD",
@@ -160,6 +169,7 @@ function getInitialStore(): MockStore {
     MARKETING: "admin-head-marketing",
     R_AND_D: "admin-head-rd",
     MANAGEMENT: "admin-head-management",
+    EDITORIAL: "admin-head-editorial",
     TECHNICAL: "admin-head-tech",
   };
 
