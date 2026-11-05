@@ -16,6 +16,9 @@ import {
   Booking,
   TeamMember,
   DOMAIN_LABELS,
+  Round2Group,
+  Round2Summary,
+  Round2SendResult,
 } from "./types";
 
 const delay = (ms = 400) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -82,15 +85,6 @@ function getInitialStore(): MockStore {
       role: "DOMAIN_HEAD",
       domain: "MANAGEMENT",
       name: "Gideon Cross",
-      passwordHash: "password123",
-      claimed: true,
-    },
-    {
-      id: "admin-head-editorial",
-      email: "editorial.head@tam.vit.ac.in",
-      role: "DOMAIN_HEAD",
-      domain: "EDITORIAL",
-      name: "Penelope Feather",
       passwordHash: "password123",
       claimed: true,
     },
@@ -165,7 +159,6 @@ function getInitialStore(): MockStore {
     MARKETING: "admin-head-marketing",
     R_AND_D: "admin-head-rd",
     MANAGEMENT: "admin-head-management",
-    EDITORIAL: "admin-head-editorial",
     TECHNICAL: "admin-head-tech",
   };
 
@@ -273,12 +266,6 @@ function getInitialStore(): MockStore {
     { name: "Suhani Choudhury", domain: "MARKETING", stage: "SELECTED", submittedDaysAgo: 8, q1Marks: 10, q2Marks: 13, q3Marks: 10, interviewDayOffset: -1, interviewSlotIdx: 1 }, // 33/35
     { name: "Samar Nambiar", domain: "MARKETING", stage: "REJECTED", submittedDaysAgo: 7, q1Marks: 8, q2Marks: 12, q3Marks: 7, interviewDayOffset: -2, interviewSlotIdx: 6 }, // Rejected after interview
 
-    // EDITORIAL (5 candidates)
-    { name: "Pranav Kumar", domain: "EDITORIAL", stage: "FORM_FILLING", submittedDaysAgo: 8 },
-    { name: "Jahnavi Ray", domain: "EDITORIAL", stage: "FORM_FILLING", submittedDaysAgo: 6, round1Decision: "SHORTLIST", q1Marks: 7, q2Marks: 9, q3Marks: 6 },
-    { name: "Anmol Jain", domain: "EDITORIAL", stage: "SLOT_CHOOSING", submittedDaysAgo: 5, q1Marks: 7, q2Marks: 9, q3Marks: 6 },
-    { name: "Juhi Ganguly", domain: "EDITORIAL", stage: "INTERVIEW", submittedDaysAgo: 4, q1Marks: 8, q2Marks: 12, q3Marks: 8, interviewDayOffset: 1, interviewSlotIdx: 2 }, // Tomorrow 14:30
-    { name: "Akash Mathur", domain: "EDITORIAL", stage: "REJECTED", submittedDaysAgo: 6, q1Marks: 4, q2Marks: 7, q3Marks: 5 }, // 16/35
 
     // R_AND_D (3 candidates - very few)
     { name: "Harshit Verma", domain: "R_AND_D", stage: "FORM_FILLING", submittedDaysAgo: 5 },
@@ -972,7 +959,7 @@ export const mockApi = {
       REJECT: {
         decision: "REJECT",
         subject: "TAM Recruitment: Application Status Update - {{division}}",
-        body: "Dear {{name}},\n\nThank you for applying to the {{division}} team at The AI & ML Club, IIT Roorkee. We enjoyed reviewing your dossier.\n\nAfter careful evaluation, we are unable to take your application forward to the interview stage this recruitment cycle. We encourage you to participate in our open workshops and apply again next term.\n\nWarm regards,\nTAM Recruitment Team",
+        body: "Dear {{name}},\n\nThank you for applying to the {{division}} team at TAM, VIT. We enjoyed reviewing your dossier.\n\nAfter careful evaluation, we are unable to take your application forward to the interview stage this recruitment cycle. We encourage you to participate in our open workshops and apply again next term.\n\nWarm regards,\nTAM Recruitment Team",
       },
     };
     if (decision === "SHORTLIST") return templates.SHORTLIST;
@@ -1013,6 +1000,52 @@ export const mockApi = {
       sent: toProcess.length,
       failed: [],
       remaining: Math.max(0, candidates.length - toProcess.length),
+    };
+  },
+
+  // Round 2 (after the interview): mirrors the real backend. "Not selected" = rejected after an interview.
+  async getRound2Summary(domain: string = "ALL"): Promise<Round2Summary> {
+    await new Promise((r) => setTimeout(r, 120));
+    const store = loadStore();
+    const inDomain = (app: any) => app.submittedAt && (domain === "ALL" || app.domain === domain);
+    const interviewed = (app: any) => app.review2Marks !== null && app.review2Marks !== undefined;
+    const toRow = (app: any) => ({
+      applicationId: app.id,
+      domain: app.domain,
+      name: app.user?.name || "Candidate",
+      email: app.user?.email || "",
+      regNumber: app.user?.regNumber || "",
+      review2Marks: app.review2Marks ?? null,
+      emailStatus: app.round2EmailSentAt ? ("SENT" as const) : ("NOT_SENT" as const),
+      emailSentAt: app.round2EmailSentAt || null,
+      emailError: null,
+    });
+    return {
+      domain: (domain === "ALL" ? "ALL" : domain) as Round2Summary["domain"],
+      selected: store.applications.filter((a: any) => inDomain(a) && a.stage === "SELECTED").map(toRow),
+      notSelected: store.applications.filter((a: any) => inDomain(a) && a.stage === "REJECTED" && interviewed(a)).map(toRow),
+    };
+  },
+
+  async sendRound2Emails(domain: string, group: Round2Group): Promise<Round2SendResult> {
+    await new Promise((r) => setTimeout(r, 300));
+    const store = loadStore();
+    const list = store.applications.filter(
+      (a: any) =>
+        a.submittedAt &&
+        a.domain === domain &&
+        (group === "SELECTED" ? a.stage === "SELECTED" : a.stage === "REJECTED" && a.review2Marks != null)
+    );
+    const pending = list.filter((a: any) => !a.round2EmailSentAt);
+    pending.forEach((a: any) => {
+      a.round2EmailSentAt = new Date().toISOString();
+    });
+    saveStore(store);
+    return {
+      sent: pending.length,
+      failed: [],
+      alreadySent: list.length - pending.length,
+      message: pending.length ? `${pending.length} email(s) sent (mock).` : "Everyone in this list has already been emailed.",
     };
   },
 };

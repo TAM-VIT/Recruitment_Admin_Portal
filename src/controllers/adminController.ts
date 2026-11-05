@@ -5,6 +5,7 @@ import { prisma } from '../utils/prisma';
 import { CustomRequest, getJwtSecret, setupCodeFor, setupCodeMatches } from '../middleware/authMiddleware';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { sendFinalResultEmail } from '../utils/finalResultEmail';
 
 const mailerModule = require('../emailer/mailer');
 const sendEmail = mailerModule.sendEmail;
@@ -1175,89 +1176,116 @@ export const loginAdmin = async (req: Request, res: Response) => {
 };
 
 
-// 20. Upstream Batch Release Shortlist
-export const releaseShortlistBatch = async (req: CustomRequest, res: Response) => {
+// 20. Round 2 (after the interview) result emails: Selected, and Not selected.
+// Same idea as the Round 1 dispatch: the stage is set first (Review 2 on the applicant page), then the
+// emails go out per group. Each candidate gets each email once (checked against EmailLog), so pressing
+// send again only emails people who haven't had it yet and retries failures.
+
+type Round2Group = 'SELECTED' | 'NOT_SELECTED';
+const ROUND2_EMAIL_TYPE: Record<Round2Group, EmailType> = { SELECTED: EmailType.SELECTED, NOT_SELECTED: EmailType.REJECTED };
+
+// Interviewed = Review 2 marks saved, or the booked interview time has passed
+const wasInterviewed = (a: { review2Marks: number | null; booking: { slot: { startTime: Date } } | null }) =>
+  a.review2Marks !== null || (!!a.booking && a.booking.slot.startTime <= new Date());
+
+// Domain heads always get their own domain; root admins the one asked for (or all when listing)
+function round2Domain(admin: any, requested: unknown): DomainType | undefined {
+  if (admin?.role !== 'ROOT_ADMIN') return admin?.domain ?? undefined;
+  return typeof requested === 'string' && (Object.values(DomainType) as string[]).includes(requested)
+    ? (requested as DomainType)
+    : undefined;
+}
+
+async function findRound2Group(group: Round2Group, domain: DomainType | undefined) {
+  const apps = await prisma.application.findMany({
+    where: {
+      ...(domain ? { domain } : {}),
+      submittedAt: { not: null },
+      stage: group === 'SELECTED' ? Stage.SELECTED : Stage.REJECTED,
+    },
+    include: {
+      user: { select: { name: true, email: true, regNumber: true } },
+      emails: true,
+      booking: { include: { slot: { select: { startTime: true } } } },
+    },
+    orderBy: { user: { regNumber: 'asc' } },
+  });
+  // "Not selected" means rejected after an interview; Round 1 rejections got the Round 1 email instead
+  return group === 'NOT_SELECTED' ? apps.filter(wasInterviewed) : apps;
+}
+
+const round2EmailStatus = (emails: { type: EmailType; status: EmailStatus; sentAt: Date | null; error: string | null }[], type: EmailType) => {
+  const mine = emails.filter((e) => e.type === type);
+  const sent = mine.find((e) => e.status === EmailStatus.SENT);
+  if (sent) return { emailStatus: 'SENT', emailSentAt: sent.sentAt, emailError: null };
+  const failed = mine.find((e) => e.status === EmailStatus.FAILED);
+  if (failed) return { emailStatus: 'FAILED', emailSentAt: null, emailError: failed.error };
+  return { emailStatus: 'NOT_SENT', emailSentAt: null, emailError: null };
+};
+
+// GET /round2/summary?domain=  -> { selected: [...], notSelected: [...] } with each candidate's email status
+export const getRound2Summary = async (req: CustomRequest, res: Response) => {
   try {
-    const admin = req.user as any;
-    const { domain } = req.body;
-    const effectiveDomain = (domain || admin?.domain) as DomainType;
-    if (!effectiveDomain) return res.status(400).json({ success: false, message: 'Please select a specific domain.' });
-
-    const apps = await prisma.application.findMany({
-      where: { domain: effectiveDomain, submittedAt: { not: null }, stage: 'FORM_FILLING' },
+    const domain = round2Domain(req.user, req.query.domain);
+    const [selected, notSelected] = await Promise.all([findRound2Group('SELECTED', domain), findRound2Group('NOT_SELECTED', domain)]);
+    const toRow = (group: Round2Group) => (a: Awaited<ReturnType<typeof findRound2Group>>[number]) => ({
+      applicationId: a.id,
+      domain: a.domain,
+      name: a.user?.name,
+      email: a.user?.email,
+      regNumber: a.user?.regNumber,
+      review2Marks: a.review2Marks,
+      ...round2EmailStatus(a.emails, ROUND2_EMAIL_TYPE[group]),
     });
-
-    const toShortlist = apps.filter((a) => a.review1Passed === true);
-    const toReject = apps.filter((a) => a.review1Passed !== true && a.review1Marks !== null && a.review1Marks !== undefined);
-
-    if (toShortlist.length) {
-      await prisma.application.updateMany({ where: { id: { in: toShortlist.map((a) => a.id) } }, data: { stage: 'SLOT_CHOOSING' } });
-    }
-    if (toReject.length) {
-      await prisma.application.updateMany({ where: { id: { in: toReject.map((a) => a.id) } }, data: { stage: 'REJECTED' } });
-    }
-
     return res.status(200).json({
       success: true,
-      shortlisted: toShortlist.length,
-      rejected: toReject.length,
-      message: `Results released: ${toShortlist.length} shortlisted, ${toReject.length} rejected.`,
+      data: { domain: domain ?? 'ALL', selected: selected.map(toRow('SELECTED')), notSelected: notSelected.map(toRow('NOT_SELECTED')) },
     });
   } catch (error: any) {
-    return res.status(500).json({ success: false, message: error.message || 'Server error releasing shortlist batch' });
+    return res.status(500).json({ success: false, message: error.message || 'Server error fetching Round 2 summary' });
   }
 };
 
-// 21. Upstream Result Lists
-export const getResultLists = async (req: CustomRequest, res: Response) => {
+// POST /round2/send  body: { domain, group: "SELECTED" | "NOT_SELECTED" }
+export const sendRound2Emails = async (req: CustomRequest, res: Response) => {
   try {
-    const admin = req.user as any;
-    const queryDomain = req.query.domain as string | undefined;
-    const effectiveDomain = (queryDomain && queryDomain !== 'ALL' ? queryDomain : admin?.domain) as DomainType;
+    const domain = round2Domain(req.user, req.body?.domain);
+    if (!domain) return res.status(400).json({ success: false, message: 'Please choose a specific division.' });
+    const group = req.body?.group as Round2Group;
+    if (group !== 'SELECTED' && group !== 'NOT_SELECTED') {
+      return res.status(400).json({ success: false, message: 'group must be SELECTED or NOT_SELECTED.' });
+    }
+    const emailType = ROUND2_EMAIL_TYPE[group];
 
-    const apps = await prisma.application.findMany({
-      where: effectiveDomain ? { domain: effectiveDomain, submittedAt: { not: null } } : { submittedAt: { not: null } },
-      include: {
-        user: true,
-        emails: true,
-        booking: { include: { slot: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const apps = await findRound2Group(group, domain);
+    const pending = apps.filter((a) => round2EmailStatus(a.emails, emailType).emailStatus !== 'SENT' && a.user?.email);
 
-    const shortlisted = apps.filter((a) => a.stage === 'SHORTLISTED' || a.stage === 'SLOT_CHOOSING' || a.review1Passed === true);
-    const rejected = apps.filter((a) => a.stage === 'REJECTED' || (a.review1Passed === false && a.review1Marks !== null));
-    const selected = apps.filter((a) => a.stage === 'SELECTED');
+    let sent = 0;
+    const failed: Array<{ applicationId: string; reason: string }> = [];
+    for (const [i, app] of pending.entries()) {
+      const attempts = app.emails.filter((e) => e.type === emailType).length + 1;
+      try {
+        if (i > 0) await new Promise((resolve) => setTimeout(resolve, 1200)); // stay under Gmail's sending rate
+        await sendFinalResultEmail({ name: app.user.name || 'Candidate', email: app.user.email, domain: app.domain }, group === 'SELECTED');
+        await prisma.emailLog.create({ data: { applicationId: app.id, type: emailType, status: EmailStatus.SENT, attempts, sentAt: new Date() } });
+        sent++;
+      } catch (err: any) {
+        const reason = String(err?.message ?? err).slice(0, 500);
+        await prisma.emailLog.create({ data: { applicationId: app.id, type: emailType, status: EmailStatus.FAILED, attempts, error: reason } });
+        failed.push({ applicationId: app.id, reason });
+      }
+    }
 
     return res.status(200).json({
       success: true,
-      domain: effectiveDomain || 'ALL',
-      data: {
-        shortlisted,
-        rejected,
-        selected,
-        finalRejected: rejected.filter((a) => a.booking !== null),
-      },
+      sent,
+      failed,
+      alreadySent: apps.length - pending.length,
+      message: pending.length === 0
+        ? 'Everyone in this list has already been emailed.'
+        : `${sent} email(s) sent${failed.length ? `, ${failed.length} failed (send again to retry)` : ''}.`,
     });
   } catch (error: any) {
-    return res.status(500).json({ success: false, message: error.message || 'Server error fetching result lists' });
-  }
-};
-
-// 22. Upstream Send Result Emails
-export const sendResultEmails = async (req: CustomRequest, res: Response) => {
-  try {
-    const admin = req.user as any;
-    const { domain, group } = req.body;
-    const effectiveDomain = (domain || admin?.domain) as DomainType;
-
-    return res.status(200).json({
-      success: true,
-      message: `Email dispatch for group ${group || 'ALL'} in ${effectiveDomain || 'all domains'} initiated.`,
-      sent: 0,
-      failed: 0,
-    });
-  } catch (error: any) {
-    return res.status(500).json({ success: false, message: error.message || 'Server error sending result emails' });
+    return res.status(500).json({ success: false, message: error.message || 'Server error sending Round 2 emails' });
   }
 };

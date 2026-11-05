@@ -407,7 +407,7 @@ function ApplicantsListContent() {
       setEmailBody(
         decision === "SHORTLIST"
           ? `Dear {{name}},\n\nCongratulations! We are pleased to invite you to a 15-minute online interview for the {{division}} team.\n\nPlease sign in to {{site_url}} to choose your preferred interview slot at your earliest convenience.\n\nBest regards,\nTAM Recruitment Team`
-          : `Dear {{name}},\n\nThank you for applying to the {{division}} team at The AI & ML Club, IIT Roorkee. We enjoyed reviewing your dossier.\n\nAfter careful evaluation, we are unable to take your application forward to the interview stage this recruitment cycle. We encourage you to participate in our open workshops and apply again next term.\n\nWarm regards,\nTAM Recruitment Team`
+          : `Dear {{name}},\n\nThank you for applying to the {{division}} team at TAM, VIT. We enjoyed reviewing your dossier.\n\nAfter careful evaluation, we are unable to take your application forward to the interview stage this recruitment cycle. We encourage you to participate in our open workshops and apply again next term.\n\nWarm regards,\nTAM Recruitment Team`
       );
     } finally {
       setLoadingTemplate(false);

@@ -5,9 +5,6 @@ import {
   getAllApplicants,
   getApplicantById,
   updateApplicantReview,
-  releaseShortlistBatch,
-  getResultLists,
-  sendResultEmails,
   createInterviewSlots,
   updateInterviewSlot,
   deleteSlot,
@@ -24,6 +21,8 @@ import {
   getRound1Summary,
   getRound1Templates,
   sendRound1Emails,
+  getRound2Summary,
+  sendRound2Emails,
 } from '../controllers/adminController';
 import { authorizeRole, limitLoginAttempts, verifyToken } from '../middleware/authMiddleware';
 
@@ -38,11 +37,8 @@ router.use(verifyToken);
 
 // Domain Heads & Root Admins can view, evaluate, and batch-release candidates
 router.get('/applicants', authorizeRole(['DOMAIN_HEAD', 'ROOT_ADMIN']), getAllApplicants);
-router.get('/applicants/results', authorizeRole(['DOMAIN_HEAD', 'ROOT_ADMIN']), getResultLists);
-router.post('/applicants/send-result-emails', authorizeRole(['DOMAIN_HEAD', 'ROOT_ADMIN']), sendResultEmails);
 router.get('/applicants/:id', authorizeRole(['DOMAIN_HEAD', 'ROOT_ADMIN']), getApplicantById);
 router.put('/applicants/:applicationId/review', authorizeRole(['DOMAIN_HEAD', 'ROOT_ADMIN']), updateApplicantReview);
-router.post('/applicants/release-shortlist', authorizeRole(['DOMAIN_HEAD', 'ROOT_ADMIN']), releaseShortlistBatch);
 
 // Domain Heads create their slots, update slots, delete slots, and view their schedules
 router.post('/slots', authorizeRole(['DOMAIN_HEAD', 'ROOT_ADMIN']), createInterviewSlots);
@@ -64,6 +60,10 @@ router.delete('/form/question/:id', authorizeRole(['DOMAIN_HEAD', 'ROOT_ADMIN'])
 router.get('/round1/summary', authorizeRole(['DOMAIN_HEAD', 'ROOT_ADMIN']), getRound1Summary);
 router.get('/round1/templates', authorizeRole(['DOMAIN_HEAD', 'ROOT_ADMIN']), getRound1Templates);
 router.post('/round1/send', authorizeRole(['DOMAIN_HEAD', 'ROOT_ADMIN']), sendRound1Emails);
+
+// Round 2 (after the interview): Selected / Not selected lists and their emails
+router.get('/round2/summary', authorizeRole(['DOMAIN_HEAD', 'ROOT_ADMIN']), getRound2Summary);
+router.post('/round2/send', authorizeRole(['DOMAIN_HEAD', 'ROOT_ADMIN']), sendRound2Emails);
 
 // Only the Root Admin can view and assign Domain Heads
 router.get('/domain-heads', authorizeRole(['ROOT_ADMIN']), getDomainHeads);
