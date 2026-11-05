@@ -15,6 +15,7 @@ export interface EmailData {
     message: string;
     html: string;
     shortlisted: boolean;
+    attachments?: any[];
 }
 
 export interface SendShortlistEmailResult {
@@ -35,6 +36,7 @@ export interface EmailOptions {
     message?: string;
     text?: string;
     html?: string;
+    attachments?: any[];
 }
 
 /**

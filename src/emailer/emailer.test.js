@@ -148,7 +148,11 @@ describe("src/emailer Module Test Suite", () => {
             assert.match(email.subject, /shortlisted/i);
             assert.match(email.message, /Rahul Sharma/);
             assert.match(email.message, /interview slot/i);
-            assert.match(email.html, /Congratulations, Rahul Sharma!/);
+            assert.match(email.html, /Rahul Sharma/);
+            assert.match(email.html, /YOU'VE MADE/);
+            assert.match(email.html, /cid:tam-club-logo/);
+            assert.ok(Array.isArray(email.attachments));
+            assert.strictEqual(email.attachments[0].cid, "tam-club-logo");
         });
 
         it("should generate polite rejection email with encouraging message", () => {
@@ -165,7 +169,9 @@ describe("src/emailer Module Test Suite", () => {
             assert.match(email.subject, /Application Update/i);
             assert.match(email.message, /Priya Patel/);
             assert.match(email.message, /future/i);
-            assert.match(email.html, /Dear Priya Patel/);
+            assert.match(email.html, /Priya Patel/);
+            assert.match(email.html, /EVERY STORY/);
+            assert.match(email.html, /cid:tam-club-logo/);
         });
 
         it("should return null if status or shortlisted flag is not recognized", () => {
@@ -196,6 +202,8 @@ describe("src/emailer Module Test Suite", () => {
             assert.strictEqual(mockSentEmails[0].to, "rahul@example.com");
             assert.match(mockSentEmails[0].subject, /shortlisted/i);
             assert.match(mockSentEmails[0].text, /interview slot/i);
+            assert.ok(mockSentEmails[0].attachments);
+            assert.strictEqual(mockSentEmails[0].attachments[0].cid, "tam-club-logo");
         });
 
         it("should successfully send polite rejection email for shortlisted: false", async () => {
