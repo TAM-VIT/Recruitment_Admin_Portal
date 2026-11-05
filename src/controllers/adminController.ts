@@ -1,40 +1,40 @@
 import { Request, Response } from 'express';
-import { PrismaClient, DomainType, Role, Stage } from '@prisma/client';
-import { changeStage } from '../utils/adminRules';
+import { DomainType, Role, Stage, Round1Decision, EmailType, EmailStatus } from '@prisma/client';
+import { changeStage, assertDomainAccess, DIVISION_LABELS, MAX_REVIEW2_MARKS } from '../utils/adminRules';
+import { prisma } from '../utils/prisma';
 import { CustomRequest, getJwtSecret, setupCodeFor, setupCodeMatches } from '../middleware/authMiddleware';
-import { sendShortlistEmail } from '../emailer';
-import { sendFinalResultEmail } from '../utils/finalResultEmail';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
-const prisma = new PrismaClient();
+const mailerModule = require('../emailer/mailer');
+const sendEmail = mailerModule.sendEmail;
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+export const DEFAULT_TEMPLATES = {
+  SHORTLIST: {
+    subject: 'TAM Recruitment: Shortlisted for Interview - {{division}}',
+    body: `Dear {{name}},
 
-// Reusable safe user selection to prevent sending passwordHash to admins
-const safeUserSelect = {
-  id: true,
-  name: true,
-  email: true,
-  phone: true,
-  regNumber: true,
-  image: true,
-  createdAt: true,
-  updatedAt: true,
-  answers: {
-    include: { question: true },
+Congratulations! We are pleased to invite you to a 15-minute online interview for the {{division}} team.
+
+Please sign in to {{site_url}} to choose your preferred interview slot at your earliest convenience.
+
+Best regards,
+TAM Recruitment Team`,
+  },
+  REJECT: {
+    subject: 'TAM Recruitment Update - {{division}}',
+    body: `Dear {{name}},
+
+Thank you for applying to the {{division}} team and taking the time to complete the application.
+
+After careful consideration, we are not taking your application forward this time. We truly appreciate the thought and effort you put into your submission.
+
+We warmly invite you to attend our future events and workshops, and encourage you to apply again in our upcoming recruitment cycles.
+
+Best regards,
+TAM Recruitment Team`,
   },
 };
-
-const isDomain = (d: unknown): d is DomainType =>
-  typeof d === 'string' && (Object.values(DomainType) as string[]).includes(d);
-
-// The domain an admin may act on: a domain head always gets their own (whatever they asked for);
-// a root admin gets the one they asked for, if it's a real domain.
-const scopedDomain = (admin: any, requested: unknown): DomainType | undefined =>
-  admin?.role === 'ROOT_ADMIN' ? (isDomain(requested) ? requested : undefined) : admin?.domain ?? undefined;
-
-const canManageDomain = (admin: any, domain: DomainType) => admin?.role === 'ROOT_ADMIN' || admin?.domain === domain;
 
 // 1. Fetch all submitted applicants
 export const getAllApplicants = async (req: CustomRequest, res: Response) => {
@@ -55,196 +55,1118 @@ export const getAllApplicants = async (req: CustomRequest, res: Response) => {
         submittedAt: { not: null },
       },
       include: {
-        user: { select: safeUserSelect },
-        booking: {
+        user: {
           include: {
-            slot: {
-              include: { interviewer: { select: { id: true, name: true, email: true } } },
+            answers: {
+              include: { question: true },
             },
           },
         },
-        emails: true,
+        booking: {
+          include: { slot: true },
+        },
       },
       orderBy: { user: { regNumber: 'asc' } },
     });
 
     return res.status(200).json({ success: true, data: applications });
   } catch (error) {
-    console.error('getAllApplicants failed:', error);
     return res.status(500).json({ success: false, message: 'Server error fetching applicants' });
   }
 };
 
-// 2. Fetch a single applicant's full details (a domain head only sees their domain's application and answers)
-export const getApplicantById = async (req: CustomRequest, res: Response) => {
+// 2. Fetch a single applicant's full details
+export const getApplicantById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const admin = req.user as any;
 
     const applicant = await prisma.user.findUnique({
       where: { id: String(id) },
-      select: {
-        ...safeUserSelect,
+      include: {
         applications: true,
+        answers: {
+          include: { question: true },
+        },
       },
     });
 
     if (!applicant) return res.status(404).json({ success: false, message: 'Applicant not found' });
-
-    if (admin?.role !== 'ROOT_ADMIN') {
-      const applications = applicant.applications.filter((a) => a.domain === admin?.domain);
-      if (applications.length === 0) return res.status(404).json({ success: false, message: 'Applicant not found' });
-      return res.status(200).json({
-        success: true,
-        data: { ...applicant, applications, answers: applicant.answers.filter((a) => a.question?.domain === admin?.domain) },
-      });
-    }
-
     return res.status(200).json({ success: true, data: applicant });
   } catch (error) {
-    console.error('getApplicantById failed:', error);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
-// 3. Update applicant review
+// 3. Update an applicant's individual question marks, evaluation notes, stage, and round 1 decision
 export const updateApplicantReview = async (req: CustomRequest, res: Response) => {
   try {
     const { applicationId } = req.params;
-    const { stage, review1Marks, review1Comments, review1Passed, review2Marks, review2Comments, review2Passed, answerScores } = req.body;
+    const {
+      stage,
+      round1Decision,
+      review1Marks,
+      review1Comments,
+      review1Passed,
+      review2Marks,
+      review2Comments,
+      review2Passed,
+      answerScores, // Array of { answerId: string, marks: number }
+    } = req.body;
+
     const admin = req.user as any;
+
+    if (!admin) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
 
     const currentApp = await prisma.application.findUnique({
       where: { id: String(applicationId) },
-      include: { booking: true },
+      include: {
+        booking: {
+          include: { slot: true },
+        },
+      },
     });
 
-    if (!currentApp) return res.status(404).json({ success: false, message: 'Application not found' });
-
-    // Strict backend domain isolation check
-    if (admin.role !== 'ROOT_ADMIN' && currentApp.domain !== admin.domain) {
-      return res.status(403).json({ success: false, message: 'Access Denied: You can only modify candidates in your own domain.' });
+    if (!currentApp) {
+      return res.status(404).json({ success: false, message: 'Application not found', code: 'APPLICATION_NOT_FOUND' });
     }
 
-    // Every stage change goes through the rules in adminRules.ts. A move they don't allow is
-    // reported back (409) instead of being saved anyway, so both backends see consistent stages.
-    // It runs first so a refused change saves nothing else either.
+    // Domain check on every call
+    assertDomainAccess(admin, currentApp.domain);
+
+    // Direct stage change check: moving FORM_FILLING to SHORTLISTED or REJECTED directly is refused
     if (stage && stage !== currentApp.stage) {
-      if (!(Object.values(Stage) as string[]).includes(stage)) {
-        return res.status(400).json({ success: false, message: `Unknown stage: ${stage}` });
+      if (currentApp.stage === Stage.FORM_FILLING && (stage === Stage.SHORTLISTED || stage === Stage.REJECTED)) {
+        return res.status(409).json({
+          success: false,
+          message: 'Stage changes from FORM_FILLING must go through the decision and email workflow',
+          code: 'USE_DECISION_FLOW',
+        });
       }
-      await changeStage(String(applicationId), stage as Stage, admin);
     }
 
+    // After round1EmailSentAt is set, review1Marks, review1Comments, review1Passed, round1Decision and answerScores can no longer change
+    if (currentApp.round1EmailSentAt !== null) {
+      const isAttemptingRound1Change =
+        review1Marks !== undefined ||
+        review1Comments !== undefined ||
+        review1Passed !== undefined ||
+        round1Decision !== undefined ||
+        (Array.isArray(answerScores) && answerScores.length > 0);
+
+      if (isAttemptingRound1Change) {
+        return res.status(409).json({
+          success: false,
+          message: 'Round 1 review is locked after decision emails have been sent.',
+          code: 'DECISION_LOCKED',
+        });
+      }
+    }
+
+    // Round 1 Decision: Allowed only while the application is submitted, stage is FORM_FILLING, and round1EmailSentAt is null
+    if (round1Decision !== undefined) {
+      if (!currentApp.submittedAt || currentApp.stage !== Stage.FORM_FILLING || currentApp.round1EmailSentAt !== null) {
+        return res.status(409).json({
+          success: false,
+          message: 'Round 1 decision can only be updated for submitted applications in FORM_FILLING before emails are dispatched.',
+          code: 'DECISION_LOCKED',
+        });
+      }
+      if (round1Decision !== 'SHORTLIST' && round1Decision !== 'REJECT' && round1Decision !== null) {
+        return res.status(400).json({
+          success: false,
+          message: "round1Decision must be 'SHORTLIST', 'REJECT', or null",
+          code: 'INVALID_DECISION',
+        });
+      }
+      if (round1Decision === 'REJECT') {
+        const commentsToCheck = review1Comments !== undefined ? review1Comments : currentApp.review1Comments;
+        if (!commentsToCheck || String(commentsToCheck).trim().length < 10) {
+          return res.status(400).json({
+            success: false,
+            message: 'A comment of at least 10 characters is required for rejection.',
+            code: 'COMMENT_REQUIRED',
+          });
+        }
+      }
+    }
+
+    // Interview Marks check: PUT review accepts review2Marks (0 to 10), review2Comments, and review2Passed
+    const isAttemptingInterviewReview =
+      review2Marks !== undefined || review2Comments !== undefined || review2Passed !== undefined;
+
+    if (isAttemptingInterviewReview) {
+      if (review2Marks !== undefined) {
+        const m = Number(review2Marks);
+        if (isNaN(m) || m < 0 || m > MAX_REVIEW2_MARKS) {
+          return res.status(400).json({
+            success: false,
+            message: `review2Marks must be between 0 and ${MAX_REVIEW2_MARKS}`,
+            code: 'INVALID_MARKS',
+          });
+        }
+      }
+    }
+
+    // Save individual question marks if provided (and not locked)
     if (Array.isArray(answerScores) && answerScores.length > 0) {
       await Promise.all(
-        answerScores.map(async (item: { answerId: string; marks: number }) => {
-          const answerRecord = await prisma.answer.findUnique({ where: { id: String(item.answerId) }, include: { question: true } });
-
-          // Only this candidate's answers to this domain's questions; marks capped at maxMarks
-          if (answerRecord && answerRecord.userId === currentApp.userId && answerRecord.question?.domain === currentApp.domain) {
-            const finalMarks = Math.min(Math.max(Number(item.marks) || 0, 0), answerRecord.question.maxMarks);
-            return prisma.answer.update({
-              where: { id: String(item.answerId) },
-              data: { marks: finalMarks },
-            });
-          }
-        })
+        answerScores.map((item: { answerId: string; marks: number }) =>
+          prisma.answer.update({
+            where: { id: String(item.answerId) },
+            data: { marks: Number(item.marks) || 0 },
+          })
+        )
       );
     }
 
+    // Update the application stage via adminRules if stage is changing
+    if (stage && stage !== currentApp.stage) {
+      await changeStage(String(applicationId), stage, admin as any);
+    }
+
+    // Build update payload
+    const updateData: any = {};
+
+    if (round1Decision !== undefined) {
+      updateData.round1Decision = round1Decision as Round1Decision | null;
+      updateData.round1DecisionAt = round1Decision ? new Date() : null;
+      updateData.review1Passed = round1Decision === 'SHORTLIST';
+    } else if (review1Passed !== undefined) {
+      updateData.review1Passed = Boolean(review1Passed);
+    }
+
+    if (review1Marks !== undefined) updateData.review1Marks = Number(review1Marks);
+    if (review1Comments !== undefined) updateData.review1Comments = review1Comments;
+
+    if (review2Marks !== undefined) updateData.review2Marks = Number(review2Marks);
+    if (review2Comments !== undefined) updateData.review2Comments = review2Comments;
+    if (review2Passed !== undefined) updateData.review2Passed = Boolean(review2Passed);
+
     const updatedApplication = await prisma.application.update({
       where: { id: String(applicationId) },
-      data: {
-        ...(review1Marks !== undefined ? { review1Marks: Number(review1Marks) } : {}),
-        ...(review1Comments !== undefined ? { review1Comments } : {}),
-        ...(review1Passed !== undefined ? { review1Passed: Boolean(review1Passed) } : {}),
-        ...(review2Marks !== undefined ? { review2Marks: Number(review2Marks) } : {}),
-        ...(review2Comments !== undefined ? { review2Comments } : {}),
-        ...(review2Passed !== undefined ? { review2Passed: Boolean(review2Passed) } : {}),
+      data: updateData,
+      include: {
+        user: {
+          include: {
+            answers: { include: { question: true } },
+          },
+        },
+        booking: {
+          include: { slot: true },
+        },
       },
-      include: { user: { select: safeUserSelect }, booking: { include: { slot: true } } },
     });
 
     return res.status(200).json({ success: true, data: updatedApplication });
   } catch (error: any) {
-    // rule errors from changeStage carry their own status (403 wrong domain, 409 move not allowed)
-    return res.status(error.status || 500).json({ success: false, message: error.message || 'Server error', code: error.code });
+    const status = error.status || 500;
+    return res.status(status).json({ success: false, message: error.message || 'Server error', code: error.code });
   }
 };
 
-// A candidate counts as interviewed once they have Review 2 marks or their interview time has passed.
-// (A booking kept after rejection means the interview happened; see changeStage.)
-const wasInterviewed = (a: { review2Marks: number | null; booking: { slot: { startTime: Date } } | null }) =>
-  a.review2Marks !== null || (!!a.booking && a.booking.slot.startTime <= new Date());
+// 4. Create Interview Slots
+export const createInterviewSlots = async (req: CustomRequest, res: Response) => {
+  try {
+    const admin = req.user as any;
+    const { interviewerId, domain, meetingLink, startTime, endTime, durationMinutes, capacity } = req.body;
 
-// The four result lists, each with its own email:
-//   SHORTLISTED     waiting to book a slot              -> interview invite
-//   REJECTED        rejected before any interview       -> polite rejection (says they weren't moved to interview)
-//   SELECTED        selected after the interview        -> congratulations
-//   FINAL_REJECTED  rejected after their interview      -> thanks for interviewing
-// emailType is the EmailLog type recorded for that email.
-const RESULT_GROUPS = {
-  SHORTLISTED: { stages: ['SHORTLISTED', 'SLOT_CHOOSING'] as Stage[], emailType: 'SHORTLISTED', label: 'shortlist' },
-  REJECTED: { stages: ['REJECTED'] as Stage[], emailType: 'REJECTED', label: 'rejection' },
-  SELECTED: { stages: ['SELECTED'] as Stage[], emailType: 'SELECTED', label: 'selection' },
-  FINAL_REJECTED: { stages: ['REJECTED'] as Stage[], emailType: 'REJECTED', label: 'final result' },
-} as const;
-type ResultGroup = keyof typeof RESULT_GROUPS;
-const isResultGroup = (g: unknown): g is ResultGroup => typeof g === 'string' && g in RESULT_GROUPS;
+    const effectiveInterviewerId = interviewerId || admin?.id;
+    const effectiveDomain = (domain || admin?.domain) as DomainType;
 
-async function findGroup(domain: DomainType, group: ResultGroup) {
-  const apps = await prisma.application.findMany({
-    where: { domain, submittedAt: { not: null }, stage: { in: RESULT_GROUPS[group].stages } },
-    include: {
-      user: { select: { name: true, email: true, regNumber: true } },
-      emails: true,
-      booking: { include: { slot: { select: { startTime: true } } } },
-    },
-    orderBy: { user: { regNumber: 'asc' } },
-  });
-  if (group === 'REJECTED') return apps.filter((a) => !wasInterviewed(a));
-  if (group === 'FINAL_REJECTED') return apps.filter((a) => wasInterviewed(a));
-  return apps;
-}
+    if (!effectiveInterviewerId || !effectiveDomain) {
+      return res.status(400).json({ success: false, message: 'Missing interviewer or domain information.' });
+    }
 
-type GroupApp = Awaited<ReturnType<typeof findGroup>>[number];
+    assertDomainAccess(admin, effectiveDomain);
 
-function sendGroupEmail(group: ResultGroup, app: GroupApp) {
-  const candidate = { name: app.user.name || 'Candidate', email: app.user.email };
-  switch (group) {
-    case 'SHORTLISTED':
-      return sendShortlistEmail({ ...candidate, shortlisted: true });
-    case 'REJECTED':
-      return sendShortlistEmail({ ...candidate, shortlisted: false });
-    case 'SELECTED':
-      return sendFinalResultEmail({ ...candidate, domain: app.domain }, true);
-    case 'FINAL_REJECTED':
-      return sendFinalResultEmail({ ...candidate, domain: app.domain }, false);
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) {
+      return res.status(400).json({ success: false, message: 'End time must be after start time.' });
+    }
+
+    const totalRangeMinutes = Math.round((end.getTime() - start.getTime()) / 60000);
+    const slotDuration = Number(durationMinutes) > 0 ? Number(durationMinutes) : totalRangeMinutes;
+
+    const slotsToCreate = [];
+    let currentStart = new Date(start);
+
+    while (currentStart < end) {
+      const currentEnd = new Date(currentStart.getTime() + slotDuration * 60000);
+      if (currentEnd > end) break;
+
+      slotsToCreate.push({
+        interviewerId: String(effectiveInterviewerId),
+        domain: effectiveDomain,
+        meetingLink: meetingLink ? String(meetingLink).trim() : null,
+        startTime: new Date(currentStart),
+        endTime: new Date(currentEnd),
+        capacity: Number(capacity) > 0 ? Number(capacity) : 1,
+      });
+
+      currentStart = currentEnd;
+    }
+
+    if (slotsToCreate.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Time window (${totalRangeMinutes} mins) is shorter than the selected slot duration (${slotDuration} mins).`,
+      });
+    }
+
+    const createdSlots = await prisma.slot.createMany({
+      data: slotsToCreate,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: `Successfully created ${createdSlots.count} interview slot(s) (${slotDuration} mins each)!`,
+    });
+  } catch (error: any) {
+    const status = error.status || 500;
+    return res.status(status).json({ success: false, message: error.message || 'Server error while creating slots', code: error.code });
   }
-}
+};
 
-// Latest email status for one email type: SENT once any attempt succeeded
-function emailStatus(emails: { type: string; status: string; sentAt: Date | null; error: string | null; createdAt: Date }[], type: string) {
-  const mine = emails.filter((e) => e.type === type).sort((a, b) => +b.createdAt - +a.createdAt);
-  const sent = mine.find((e) => e.status === 'SENT');
-  if (sent) return { status: 'SENT', sentAt: sent.sentAt, error: null };
-  if (mine[0]) return { status: 'FAILED', sentAt: null, error: mine[0].error };
-  return { status: 'NOT_SENT', sentAt: null, error: null };
-}
+// 5. Get My Schedule
+export const getMySchedule = async (req: CustomRequest, res: Response) => {
+  try {
+    const { adminId } = req.params;
+    const { all, domain } = req.query;
 
-// 3B. Release Review 1 results: moves stages only. Emails are sent separately from the result lists.
+    const mySchedule = await prisma.slot.findMany({
+      where: {
+        ...(adminId && adminId !== 'ALL' ? { interviewerId: String(adminId) } : {}),
+        ...(domain && domain !== 'ALL' ? { domain: String(domain) as DomainType } : {}),
+        ...(all === 'true' ? {} : { bookedCount: { gt: 0 } }),
+      },
+      include: {
+        bookings: {
+          include: {
+            application: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { startTime: 'asc' },
+    });
+
+    return res.status(200).json({ success: true, data: mySchedule });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Server error fetching schedule' });
+  }
+};
+
+// 6. Assign Domain Heads
+export const assignDomainHead = async (req: Request, res: Response) => {
+  try {
+    const { emails, email, domain } = req.body;
+
+    const rawList = Array.isArray(emails)
+      ? emails
+      : typeof emails === 'string'
+      ? emails.split(',')
+      : typeof email === 'string'
+      ? email.split(',')
+      : [];
+
+    const normalizedEmails = rawList
+      .map((e: string) => String(e).trim().toLowerCase())
+      .filter(Boolean);
+
+    if (normalizedEmails.length === 0) {
+      return res.status(400).json({ success: false, message: 'Please provide at least one valid email.' });
+    }
+
+    const existingAdmins = await prisma.admin.findMany({
+      where: { email: { in: normalizedEmails } },
+    });
+
+    if (existingAdmins.length > 0) {
+      const duplicateEmails = existingAdmins.map((a) => a.email);
+      return res.status(400).json({
+        success: false,
+        message: `These emails already have admin accounts: ${duplicateEmails.join(', ')}`,
+      });
+    }
+
+    const adminsToCreate = normalizedEmails.map((em: string) => ({
+      email: em,
+      role: 'DOMAIN_HEAD' as Role,
+      domain: domain as DomainType,
+    }));
+
+    const createdAdmins = await prisma.admin.createMany({
+      data: adminsToCreate,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: `Successfully granted domain access to ${createdAdmins.count} head(s).`,
+      assignedEmails: normalizedEmails,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Server error while assigning domain heads' });
+  }
+};
+
+// 7. Get Domain Form Questions & Subsections
+export const getDomainForm = async (req: CustomRequest, res: Response) => {
+  try {
+    const admin = req.user as any;
+    const queryDomain = req.query.domain as string | undefined;
+    const effectiveDomain =
+      admin?.role === 'DOMAIN_HEAD' && admin?.domain
+        ? (admin.domain as DomainType)
+        : queryDomain && queryDomain !== 'ALL'
+        ? (queryDomain as DomainType)
+        : undefined;
+
+    const [subsections, questions] = await Promise.all([
+      prisma.subsection.findMany({
+        where: effectiveDomain ? { domain: effectiveDomain } : undefined,
+        orderBy: { order: 'asc' },
+      }),
+      prisma.question.findMany({
+        where: effectiveDomain ? { domain: effectiveDomain } : undefined,
+        include: { subsection: true },
+        orderBy: { order: 'asc' },
+      }),
+    ]);
+
+    return res.status(200).json({ success: true, data: { subsections, questions } });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Server error fetching domain form' });
+  }
+};
+
+// 8. Create a Form Subsection
+export const createSubsection = async (req: CustomRequest, res: Response) => {
+  try {
+    const admin = req.user as any;
+    const { name, domain, order } = req.body;
+    const effectiveDomain = (admin?.role === 'DOMAIN_HEAD' && admin?.domain ? admin.domain : domain) as DomainType;
+
+    assertDomainAccess(admin, effectiveDomain);
+
+    const subsection = await prisma.subsection.create({
+      data: {
+        name,
+        domain: effectiveDomain,
+        order: Number(order) || 0,
+      },
+    });
+
+    return res.status(201).json({ success: true, data: subsection });
+  } catch (error: any) {
+    const status = error.status || 500;
+    return res.status(status).json({ success: false, message: error.message || 'Server error while creating subsection', code: error.code });
+  }
+};
+
+// 9. Update a Form Subsection (PUT /form/subsection/:id)
+export const updateSubsection = async (req: CustomRequest, res: Response) => {
+  try {
+    const admin = req.user as any;
+    const { id } = req.params;
+    const { name, order } = req.body;
+
+    const sub = await prisma.subsection.findUnique({ where: { id: String(id) } });
+    if (!sub) {
+      return res.status(404).json({ success: false, message: 'Subsection not found', code: 'SUBSECTION_NOT_FOUND' });
+    }
+
+    assertDomainAccess(admin, sub.domain);
+
+    const updated = await prisma.subsection.update({
+      where: { id: String(id) },
+      data: {
+        ...(name !== undefined ? { name: String(name) } : {}),
+        ...(order !== undefined ? { order: Number(order) } : {}),
+      },
+    });
+
+    return res.status(200).json({ success: true, data: updated });
+  } catch (error: any) {
+    const status = error.status || 500;
+    return res.status(status).json({ success: false, message: error.message || 'Server error updating subsection', code: error.code });
+  }
+};
+
+// 10. Delete a Form Subsection (DELETE /form/subsection/:id)
+export const deleteSubsection = async (req: CustomRequest, res: Response) => {
+  try {
+    const admin = req.user as any;
+    const { id } = req.params;
+
+    const sub = await prisma.subsection.findUnique({
+      where: { id: String(id) },
+      include: { questions: true },
+    });
+
+    if (!sub) {
+      return res.status(404).json({ success: false, message: 'Subsection not found', code: 'SUBSECTION_NOT_FOUND' });
+    }
+
+    assertDomainAccess(admin, sub.domain);
+
+    const questionIds = sub.questions.map((q) => q.id);
+    if (questionIds.length > 0) {
+      const answersCount = await prisma.answer.count({
+        where: { questionId: { in: questionIds } },
+      });
+      if (answersCount > 0) {
+        return res.status(409).json({
+          success: false,
+          message: 'Cannot delete subsection with questions that have existing answers.',
+          code: 'QUESTION_HAS_ANSWERS',
+        });
+      }
+      await prisma.question.deleteMany({ where: { id: { in: questionIds } } });
+    }
+
+    await prisma.subsection.delete({ where: { id: String(id) } });
+    return res.status(200).json({ success: true, message: 'Subsection deleted successfully' });
+  } catch (error: any) {
+    const status = error.status || 500;
+    return res.status(status).json({ success: false, message: error.message || 'Server error deleting subsection', code: error.code });
+  }
+};
+
+// 11. Create a Question (maxLength always 100000)
+export const createQuestion = async (req: CustomRequest, res: Response) => {
+  try {
+    const admin = req.user as any;
+    const { text, domain, subsectionId, required, order, maxMarks } = req.body;
+    const effectiveDomain = (admin?.role === 'DOMAIN_HEAD' && admin?.domain ? admin.domain : domain) as DomainType;
+
+    assertDomainAccess(admin, effectiveDomain);
+
+    if (subsectionId) {
+      const sub = await prisma.subsection.findUnique({ where: { id: String(subsectionId) } });
+      if (!sub) {
+        return res.status(404).json({ success: false, message: 'Subsection not found', code: 'SUBSECTION_NOT_FOUND' });
+      }
+      assertDomainAccess(admin, sub.domain);
+    }
+
+    const question = await prisma.question.create({
+      data: {
+        text,
+        domain: effectiveDomain,
+        subsectionId: subsectionId ? String(subsectionId) : null,
+        required: required !== undefined ? Boolean(required) : true,
+        order: Number(order) || 0,
+        maxLength: 2000, // stores maxLength 2000 (ignoring any client value)
+        maxMarks: Number(maxMarks) || 10,
+      },
+    });
+
+    return res.status(201).json({ success: true, data: question });
+  } catch (error: any) {
+    const status = error.status || 500;
+    return res.status(status).json({ success: false, message: error.message || 'Server error while creating question', code: error.code });
+  }
+};
+
+// 12. Update a Question (PUT /form/question/:id)
+export const updateQuestion = async (req: CustomRequest, res: Response) => {
+  try {
+    const admin = req.user as any;
+    const { id } = req.params;
+    const { text, subsectionId, required, order, maxMarks } = req.body;
+
+    const question = await prisma.question.findUnique({ where: { id: String(id) } });
+    if (!question) {
+      return res.status(404).json({ success: false, message: 'Question not found', code: 'QUESTION_NOT_FOUND' });
+    }
+
+    assertDomainAccess(admin, question.domain);
+
+    if (subsectionId) {
+      const sub = await prisma.subsection.findUnique({ where: { id: String(subsectionId) } });
+      if (!sub) {
+        return res.status(404).json({ success: false, message: 'Subsection not found', code: 'SUBSECTION_NOT_FOUND' });
+      }
+      assertDomainAccess(admin, sub.domain);
+    }
+
+    const updated = await prisma.question.update({
+      where: { id: String(id) },
+      data: {
+        ...(text !== undefined ? { text: String(text) } : {}),
+        ...(subsectionId !== undefined ? { subsectionId: subsectionId ? String(subsectionId) : null } : {}),
+        ...(required !== undefined ? { required: Boolean(required) } : {}),
+        ...(order !== undefined ? { order: Number(order) } : {}),
+        ...(maxMarks !== undefined ? { maxMarks: Number(maxMarks) } : {}),
+        maxLength: 2000, // maxLength stays 2000
+      },
+    });
+
+    return res.status(200).json({ success: true, data: updated });
+  } catch (error: any) {
+    const status = error.status || 500;
+    return res.status(status).json({ success: false, message: error.message || 'Server error updating question', code: error.code });
+  }
+};
+
+// 13. Delete a Question (DELETE /form/question/:id)
+export const deleteQuestion = async (req: CustomRequest, res: Response) => {
+  try {
+    const admin = req.user as any;
+    const { id } = req.params;
+
+    const question = await prisma.question.findUnique({ where: { id: String(id) } });
+    if (!question) {
+      return res.status(404).json({ success: false, message: 'Question not found', code: 'QUESTION_NOT_FOUND' });
+    }
+
+    assertDomainAccess(admin, question.domain);
+
+    const answersCount = await prisma.answer.count({ where: { questionId: String(id) } });
+    if (answersCount > 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'Cannot delete question that has existing answers.',
+        code: 'QUESTION_HAS_ANSWERS',
+      });
+    }
+
+    await prisma.question.delete({ where: { id: String(id) } });
+    return res.status(200).json({ success: true, message: 'Question deleted successfully' });
+  } catch (error: any) {
+    const status = error.status || 500;
+    return res.status(status).json({ success: false, message: error.message || 'Server error deleting question', code: error.code });
+  }
+};
+
+// 14. Delete an Interview Slot (DELETE /slots/:id)
+export const deleteSlot = async (req: CustomRequest, res: Response) => {
+  try {
+    const admin = req.user as any;
+    const { id } = req.params;
+
+    const slot = await prisma.slot.findUnique({ where: { id: String(id) } });
+    if (!slot) {
+      return res.status(404).json({ success: false, message: 'Slot not found', code: 'SLOT_NOT_FOUND' });
+    }
+
+    assertDomainAccess(admin, slot.domain);
+
+    const bookingsCount = await prisma.slotBooking.count({ where: { slotId: String(id) } });
+    if (bookingsCount > 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'This slot has bookings. Move or cancel them first.',
+        code: 'SLOT_HAS_BOOKINGS',
+      });
+    }
+
+    await prisma.slot.delete({ where: { id: String(id) } });
+    return res.status(200).json({ success: true, message: 'Slot deleted successfully' });
+  } catch (error: any) {
+    const status = error.status || 500;
+    return res.status(status).json({ success: false, message: error.message || 'Server error deleting slot', code: error.code });
+  }
+};
+
+// 14B. Update an Interview Slot (PATCH /slots/:id)
+export const updateInterviewSlot = async (req: CustomRequest, res: Response) => {
+  try {
+    const admin = req.user as any;
+    const { id } = req.params;
+    const { meetingLink } = req.body;
+
+    const slot = await prisma.slot.findUnique({ where: { id: String(id) } });
+    if (!slot) {
+      return res.status(404).json({ success: false, message: 'Slot not found', code: 'SLOT_NOT_FOUND' });
+    }
+
+    assertDomainAccess(admin, slot.domain);
+
+    if (admin?.role !== 'ROOT_ADMIN' && slot.interviewerId !== admin?.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only update slots that you created.',
+        code: 'FORBIDDEN',
+      });
+    }
+
+    const updated = await prisma.slot.update({
+      where: { id: String(id) },
+      data: {
+        meetingLink: meetingLink !== undefined ? (meetingLink ? String(meetingLink).trim() : null) : slot.meetingLink,
+      },
+    });
+
+    return res.status(200).json({ success: true, data: updated, message: 'Slot meeting link updated.' });
+  } catch (error: any) {
+    const status = error.status || 500;
+    return res.status(status).json({ success: false, message: error.message || 'Server error updating slot', code: error.code });
+  }
+};
+
+// 15. Round 1 Summary (GET /round1/summary?domain=)
+export const getRound1Summary = async (req: CustomRequest, res: Response) => {
+  try {
+    const admin = req.user as any;
+    const queryDomain = req.query.domain as string | undefined;
+
+    let effectiveDomain: DomainType | undefined;
+    if (admin.role === 'DOMAIN_HEAD') {
+      effectiveDomain = admin.domain as DomainType;
+    } else if (queryDomain && queryDomain !== 'ALL') {
+      effectiveDomain = queryDomain as DomainType;
+    }
+
+    const baseWhere: any = {
+      submittedAt: { not: null },
+      ...(effectiveDomain ? { domain: effectiveDomain } : {}),
+    };
+
+    const [undecided, pendingShortlist, pendingReject, sentShortlist, sentReject] = await Promise.all([
+      prisma.application.count({
+        where: {
+          ...baseWhere,
+          stage: Stage.FORM_FILLING,
+          round1Decision: null,
+          round1EmailSentAt: null,
+        },
+      }),
+      prisma.application.count({
+        where: {
+          ...baseWhere,
+          stage: Stage.FORM_FILLING,
+          round1Decision: Round1Decision.SHORTLIST,
+          round1EmailSentAt: null,
+        },
+      }),
+      prisma.application.count({
+        where: {
+          ...baseWhere,
+          stage: Stage.FORM_FILLING,
+          round1Decision: Round1Decision.REJECT,
+          round1EmailSentAt: null,
+        },
+      }),
+      prisma.application.count({
+        where: {
+          ...baseWhere,
+          round1EmailSentAt: { not: null },
+          round1Decision: Round1Decision.SHORTLIST,
+        },
+      }),
+      prisma.application.count({
+        where: {
+          ...baseWhere,
+          round1EmailSentAt: { not: null },
+          round1Decision: Round1Decision.REJECT,
+        },
+      }),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        undecided,
+        pendingShortlist,
+        pendingReject,
+        sentShortlist,
+        sentReject,
+      },
+    });
+  } catch (error: any) {
+    const status = error.status || 500;
+    return res.status(status).json({ success: false, message: error.message || 'Server error fetching summary', code: error.code });
+  }
+};
+
+// 16. Round 1 Templates (GET /round1/templates?decision=)
+export const getRound1Templates = async (req: CustomRequest, res: Response) => {
+  try {
+    const { decision } = req.query;
+    if (decision === 'SHORTLIST') {
+      return res.status(200).json({
+        success: true,
+        data: {
+          decision: 'SHORTLIST',
+          subject: DEFAULT_TEMPLATES.SHORTLIST.subject,
+          body: DEFAULT_TEMPLATES.SHORTLIST.body,
+        },
+      });
+    }
+    if (decision === 'REJECT') {
+      return res.status(200).json({
+        success: true,
+        data: {
+          decision: 'REJECT',
+          subject: DEFAULT_TEMPLATES.REJECT.subject,
+          body: DEFAULT_TEMPLATES.REJECT.body,
+        },
+      });
+    }
+    return res.status(200).json({
+      success: true,
+      data: DEFAULT_TEMPLATES,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: 'Server error fetching templates' });
+  }
+};
+
+// 17. Send Round 1 Emails (POST /round1/send)
+export const sendRound1Emails = async (req: CustomRequest, res: Response) => {
+  try {
+    const admin = req.user as any;
+    const { domain, decision, subject, body, limit } = req.body;
+
+    // 1. Validate Decision
+    if (decision !== 'SHORTLIST' && decision !== 'REJECT') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid decision. Must be SHORTLIST or REJECT',
+        code: 'INVALID_DECISION',
+      });
+    }
+
+    // 2. Validate Domain and access
+    if (!domain || domain === 'ALL' || !Object.values(DomainType).includes(domain)) {
+      return res.status(400).json({
+        success: false,
+        message: 'A specific valid domain is required (never ALL)',
+        code: 'SPECIFIC_DOMAIN_REQUIRED',
+      });
+    }
+
+    const targetDomain = domain as DomainType;
+    if (admin.role === 'DOMAIN_HEAD' && admin.domain !== targetDomain) {
+      return res.status(403).json({
+        success: false,
+        message: 'Domain heads can only send emails for their own domain',
+        code: 'WRONG_DOMAIN',
+      });
+    }
+
+    // 3. Validate Subject & Body
+    if (!subject || typeof subject !== 'string' || subject.trim().length < 1 || subject.trim().length > 200 || /[\r\n]/.test(subject)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Subject must be between 1 and 200 characters with no line breaks',
+        code: 'INVALID_SUBJECT',
+      });
+    }
+
+    if (!body || typeof body !== 'string' || body.trim().length < 1 || body.length > 5000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Body must be between 1 and 5000 characters',
+        code: 'INVALID_BODY',
+      });
+    }
+
+    const batchLimit = Math.min(Math.max(Number(limit) || 20, 1), 50);
+    const emailType = decision === 'SHORTLIST' ? EmailType.SHORTLISTED : EmailType.REJECTED;
+    const targetStage = decision === 'SHORTLIST' ? Stage.SHORTLISTED : Stage.REJECTED;
+    const targetDecision = decision === 'SHORTLIST' ? Round1Decision.SHORTLIST : Round1Decision.REJECT;
+
+    const isDryRun = process.env.EMAIL_DRY_RUN === 'true' || process.env.EMAIL_DRY_RUN === '1';
+    const siteUrl = process.env.CANDIDATE_SITE_URL || 'https://tam-times.vercel.app';
+    const divisionLabel = DIVISION_LABELS[targetDomain] || targetDomain;
+
+    // Find candidate applications (skip any application that already has a SENT log)
+    const applications = await prisma.application.findMany({
+      where: {
+        domain: targetDomain,
+        submittedAt: { not: null },
+        stage: Stage.FORM_FILLING,
+        round1Decision: targetDecision,
+        round1EmailSentAt: null,
+        emails: {
+          none: {
+            type: emailType,
+            status: EmailStatus.SENT,
+          },
+        },
+      },
+      include: {
+        user: true,
+      },
+      orderBy: { submittedAt: 'asc' },
+      take: batchLimit,
+    });
+
+    const totalPending = await prisma.application.count({
+      where: {
+        domain: targetDomain,
+        submittedAt: { not: null },
+        stage: Stage.FORM_FILLING,
+        round1Decision: targetDecision,
+        round1EmailSentAt: null,
+      },
+    });
+
+    let sentCount = 0;
+    const failed: Array<{ applicationId: string; reason: string }> = [];
+
+    for (let i = 0; i < applications.length; i++) {
+      const app = applications[i];
+
+      // Create EmailLog row: type SHORTLISTED or REJECTED, status PENDING, attempts + 1
+      const emailLog = await prisma.emailLog.create({
+        data: {
+          applicationId: app.id,
+          type: emailType,
+          status: EmailStatus.PENDING,
+          attempts: 1,
+        },
+      });
+
+      const renderedSubject = subject
+        .replace(/{{name}}/g, app.user.name)
+        .replace(/{{division}}/g, divisionLabel)
+        .replace(/{{site_url}}/g, siteUrl);
+
+      const renderedBody = body
+        .replace(/{{name}}/g, app.user.name)
+        .replace(/{{division}}/g, divisionLabel)
+        .replace(/{{site_url}}/g, siteUrl);
+
+      if (isDryRun) {
+        // Dry run: nothing is sent, flow behaves identically, each log says "dry run"
+        await prisma.$transaction(async (tx) => {
+          await tx.application.update({
+            where: { id: app.id },
+            data: {
+              stage: targetStage,
+              round1EmailSentAt: new Date(),
+            },
+          });
+          await tx.emailLog.update({
+            where: { id: emailLog.id },
+            data: {
+              status: EmailStatus.SENT,
+              sentAt: new Date(),
+              error: 'dry run',
+            },
+          });
+        });
+        sentCount++;
+      } else {
+        try {
+          if (i > 0) {
+            await new Promise((resolve) => setTimeout(resolve, 1200));
+          }
+          await sendEmail({
+            to: app.user.email,
+            subject: renderedSubject,
+            message: renderedBody,
+          });
+
+          await prisma.$transaction(async (tx) => {
+            await tx.application.update({
+              where: { id: app.id },
+              data: {
+                stage: targetStage,
+                round1EmailSentAt: new Date(),
+              },
+            });
+            await tx.emailLog.update({
+              where: { id: emailLog.id },
+              data: {
+                status: EmailStatus.SENT,
+                sentAt: new Date(),
+              },
+            });
+          });
+          sentCount++;
+        } catch (sendErr: any) {
+          const reason = sendErr?.message || 'Failed to dispatch email';
+          await prisma.emailLog.update({
+            where: { id: emailLog.id },
+            data: {
+              status: EmailStatus.FAILED,
+              error: reason.substring(0, 500),
+            },
+          });
+          failed.push({ applicationId: app.id, reason });
+        }
+      }
+    }
+
+    const remaining = Math.max(0, totalPending - applications.length);
+
+    return res.status(200).json({
+      success: true,
+      processed: applications.length,
+      sent: sentCount,
+      failed,
+      remaining,
+    });
+  } catch (error: any) {
+    const status = error.status || 500;
+    return res.status(status).json({ success: false, message: error.message || 'Server error sending round 1 emails', code: error.code });
+  }
+};
+
+// 18. Setup Create Admin Account for first time only
+export const setupAdminAccount = async (req: Request, res: Response) => {
+  try {
+    const { email, password, name, setupCode } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: 'Email and password are required.' });
+    }
+    if (String(password).length < 8) {
+      return res.status(400).json({ success: false, message: 'Use at least 8 characters for the password.' });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    const allMatching = await prisma.admin.findMany();
+    const admin = allMatching.find((a) => a.email.trim().toLowerCase() === normalizedEmail);
+
+    if (!admin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access Denied: This email has not been assigned as an admin. Ask the root admin to whitelist your email.',
+      });
+    }
+
+    // If setup code provided or admin was whitelisted, verify code
+    if (setupCode && !setupCodeMatches(normalizedEmail, setupCode)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Email or setup code is wrong. Ask the root admin for your setup code.',
+      });
+    }
+
+    if (admin.password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Account already exists. Please log in instead.',
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(String(password), 10);
+    const updatedAdmin = await prisma.admin.update({
+      where: { id: admin.id },
+      data: {
+        email: normalizedEmail,
+        password: hashedPassword,
+        ...(name ? { name: String(name) } : {}),
+      },
+    });
+
+    const secret = getJwtSecret();
+    const token = jwt.sign(
+      { id: updatedAdmin.id, email: updatedAdmin.email, role: updatedAdmin.role, domain: updatedAdmin.domain },
+      secret,
+      { expiresIn: '12h' }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Account set up successfully',
+      token,
+      id: updatedAdmin.id,
+      email: updatedAdmin.email,
+      role: updatedAdmin.role,
+      domain: updatedAdmin.domain,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message || 'Server error during account setup' });
+  }
+};
+
+// 18B. Get All Whitelisted Domain Heads
+export const getDomainHeads = async (req: Request, res: Response) => {
+  try {
+    const admins = await prisma.admin.findMany({ orderBy: { email: 'asc' } });
+    const data = admins.map((a) => ({
+      id: a.id,
+      email: a.email,
+      name: a.name,
+      role: a.role,
+      domain: a.domain,
+      hasPassword: !!a.password,
+      setupCode: a.password ? null : setupCodeFor(a.email),
+    }));
+    return res.status(200).json({ success: true, data });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message || 'Server error fetching domain heads' });
+  }
+};
+
+// 19. Login Admin
+export const loginAdmin = async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: 'Email and password are required.' });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const allMatching = await prisma.admin.findMany();
+    const admin = allMatching.find((a) => a.email.trim().toLowerCase() === normalizedEmail);
+
+    if (!admin) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+
+    if (!admin.password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password not set for this account. Please click Create First-Time Password first.',
+      });
+    }
+
+    const isMatch = await bcrypt.compare(String(password), admin.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+
+    const secret = process.env.JWT_SECRET || process.env.ADMIN_JWT_SECRET || 'fallback_secret';
+    const token = jwt.sign(
+      { id: admin.id, email: admin.email, role: admin.role, domain: admin.domain },
+      secret,
+      { expiresIn: '12h' }
+    );
+
+    return res.status(200).json({
+      success: true,
+      token,
+      id: admin.id,
+      email: admin.email,
+      role: admin.role,
+      domain: admin.domain,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Server error during login' });
+  }
+};
+
+
+// 20. Upstream Batch Release Shortlist
 export const releaseShortlistBatch = async (req: CustomRequest, res: Response) => {
   try {
-    const effectiveDomain = scopedDomain(req.user, req.body?.domain);
+    const admin = req.user as any;
+    const { domain } = req.body;
+    const effectiveDomain = (domain || admin?.domain) as DomainType;
     if (!effectiveDomain) return res.status(400).json({ success: false, message: 'Please select a specific domain.' });
 
     const apps = await prisma.application.findMany({
       where: { domain: effectiveDomain, submittedAt: { not: null }, stage: 'FORM_FILLING' },
     });
-    // only candidates still at the form stage; anyone already moved on keeps their stage
+
     const toShortlist = apps.filter((a) => a.review1Passed === true);
-    const toReject = apps.filter((a) => a.review1Passed !== true && a.review1Marks !== null);
+    const toReject = apps.filter((a) => a.review1Passed !== true && a.review1Marks !== null && a.review1Marks !== undefined);
 
     if (toShortlist.length) {
       await prisma.application.updateMany({ where: { id: { in: toShortlist.map((a) => a.id) } }, data: { stage: 'SLOT_CHOOSING' } });
@@ -257,435 +1179,63 @@ export const releaseShortlistBatch = async (req: CustomRequest, res: Response) =
       success: true,
       shortlisted: toShortlist.length,
       rejected: toReject.length,
-      message: `Results released: ${toShortlist.length} shortlisted, ${toReject.length} rejected. No emails were sent yet — send them from the Results & Emails tab.`,
+      message: `Results released: ${toShortlist.length} shortlisted, ${toReject.length} rejected.`,
     });
   } catch (error: any) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message || 'Server error releasing shortlist batch' });
   }
 };
 
-// 3C. The four result lists with each candidate's email status
+// 21. Upstream Result Lists
 export const getResultLists = async (req: CustomRequest, res: Response) => {
-  try {
-    const effectiveDomain = scopedDomain(req.user, req.query.domain);
-    if (!effectiveDomain) return res.status(400).json({ success: false, message: 'Please select a specific domain.' });
-
-    const toRow = (group: ResultGroup) => (a: GroupApp) => {
-      const mail = emailStatus(a.emails, RESULT_GROUPS[group].emailType);
-      return {
-        applicationId: a.id,
-        name: a.user?.name,
-        email: a.user?.email,
-        regNumber: a.user?.regNumber,
-        stage: a.stage,
-        review1Marks: a.review1Marks,
-        review2Marks: a.review2Marks,
-        emailStatus: mail.status,
-        emailSentAt: mail.sentAt,
-        emailError: mail.error,
-      };
-    };
-    const [shortlisted, rejected, selected, finalRejected] = await Promise.all([
-      findGroup(effectiveDomain, 'SHORTLISTED'),
-      findGroup(effectiveDomain, 'REJECTED'),
-      findGroup(effectiveDomain, 'SELECTED'),
-      findGroup(effectiveDomain, 'FINAL_REJECTED'),
-    ]);
-    return res.status(200).json({
-      success: true,
-      domain: effectiveDomain,
-      data: {
-        shortlisted: shortlisted.map(toRow('SHORTLISTED')),
-        rejected: rejected.map(toRow('REJECTED')),
-        selected: selected.map(toRow('SELECTED')),
-        finalRejected: finalRejected.map(toRow('FINAL_REJECTED')),
-      },
-    });
-  } catch (error: any) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// 3D. Send one list's email to everyone in it who hasn't received it yet
-// body: { domain, group: "SHORTLISTED" | "REJECTED" | "SELECTED" | "FINAL_REJECTED" }.
-// Safe to press again: already-sent candidates are skipped, failed ones are retried.
-export const sendResultEmails = async (req: CustomRequest, res: Response) => {
-  try {
-    const effectiveDomain = scopedDomain(req.user, req.body?.domain);
-    if (!effectiveDomain) return res.status(400).json({ success: false, message: 'Please select a specific domain.' });
-    const group = req.body?.group;
-    if (!isResultGroup(group)) {
-      return res.status(400).json({ success: false, message: `group must be one of ${Object.keys(RESULT_GROUPS).join(', ')}.` });
-    }
-    const { emailType, label } = RESULT_GROUPS[group];
-
-    const apps = await findGroup(effectiveDomain, group);
-    const pending = apps.filter((a) => emailStatus(a.emails, emailType).status !== 'SENT' && a.user?.email);
-
-    let sent = 0, failed = 0;
-    for (const app of pending) {
-      const attempts = app.emails.filter((e) => e.type === emailType).length + 1;
-      try {
-        await sendGroupEmail(group, app);
-        await prisma.emailLog.create({ data: { applicationId: app.id, type: emailType, status: 'SENT', attempts, sentAt: new Date() } });
-        sent++;
-        await sleep(600); // stay under Gmail's sending rate
-      } catch (err: any) {
-        await prisma.emailLog.create({ data: { applicationId: app.id, type: emailType, status: 'FAILED', attempts, error: String(err?.message ?? err).slice(0, 500) } });
-        failed++;
-      }
-    }
-
-    return res.status(200).json({
-      success: true,
-      sent,
-      failed,
-      alreadySent: apps.length - pending.length,
-      message: pending.length === 0
-        ? `Everyone in this list already has the ${label} email.`
-        : `${sent} ${label} email(s) sent${failed ? `, ${failed} failed (press again to retry)` : ''}.`,
-    });
-  } catch (error: any) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// 4. Create Interview Slots
-export const createInterviewSlots = async (req: CustomRequest, res: Response) => {
-  try {
-    const admin = req.user as any;
-    const { interviewerId, domain, meetingLink, startTime, endTime, durationMinutes, capacity } = req.body;
-
-    // Domain heads create slots for themselves in their own domain; root admins may choose both
-    const effectiveInterviewerId = admin?.role === 'ROOT_ADMIN' ? interviewerId || admin?.id : admin?.id;
-    const effectiveDomain = scopedDomain(admin, domain);
-
-    if (!effectiveInterviewerId || !effectiveDomain) return res.status(400).json({ success: false, message: 'Missing interviewer or domain.' });
-
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return res.status(400).json({ success: false, message: 'Invalid times.' });
-
-    const totalRangeMinutes = Math.round((end.getTime() - start.getTime()) / 60000);
-    const slotDuration = Number(durationMinutes) > 0 ? Number(durationMinutes) : totalRangeMinutes;
-
-    const slotsToCreate = [];
-    let currentStart = new Date(start);
-
-    while (currentStart < end) {
-      const currentEnd = new Date(currentStart.getTime() + slotDuration * 60000);
-      if (currentEnd > end) break;
-      slotsToCreate.push({
-        interviewerId: String(effectiveInterviewerId),
-        domain: effectiveDomain as DomainType,
-        meetingLink: meetingLink ? String(meetingLink).trim() : null,
-        startTime: new Date(currentStart),
-        endTime: new Date(currentEnd),
-        capacity: Number(capacity) > 0 ? Number(capacity) : 1,
-      });
-      currentStart = currentEnd;
-    }
-
-    if (slotsToCreate.length === 0) return res.status(400).json({ success: false, message: 'Time window is shorter than slot duration.' });
-
-    const createdSlots = await prisma.slot.createMany({ data: slotsToCreate });
-    return res.status(201).json({ success: true, message: `Created ${createdSlots.count} slots!` });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: 'Server error creating slots' });
-  }
-};
-
-// 5. Get My Schedule
-export const getMySchedule = async (req: CustomRequest, res: Response) => {
-  try {
-    const { adminId } = req.params;
-    const { all, domain } = req.query;
-    const admin = req.user as any;
-    // a domain head only sees schedules in their own domain (they include candidates' contact details)
-    const effectiveDomain = admin?.role === 'ROOT_ADMIN' ? (isDomain(domain) ? domain : undefined) : admin?.domain;
-
-    const mySchedule = await prisma.slot.findMany({
-      where: {
-        ...(adminId && adminId !== 'ALL' ? { interviewerId: String(adminId) } : {}),
-        ...(effectiveDomain ? { domain: effectiveDomain } : {}),
-        ...(all === 'true' ? {} : { bookedCount: { gt: 0 } }),
-      },
-      include: { bookings: { include: { application: { include: { user: { select: safeUserSelect } } } } } },
-      orderBy: { startTime: 'asc' },
-    });
-
-    return res.status(200).json({ success: true, data: mySchedule });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: 'Server error' });
-  }
-};
-
-// 5B. Delete an Interview Slot
-export const deleteInterviewSlot = async (req: CustomRequest, res: Response) => {
-  try {
-    const { id } = req.params;
-    const admin = req.user as any;
-
-    const slot = await prisma.slot.findUnique({ where: { id: String(id) }, include: { bookings: true } });
-    if (!slot) return res.status(404).json({ success: false, message: 'Slot not found.' });
-
-    if (admin?.role !== 'ROOT_ADMIN' && slot.interviewerId !== admin?.id) {
-      return res.status(403).json({ success: false, message: 'You can only delete slots that you created.' });
-    }
-
-    if (slot.bookings.length > 0) return res.status(400).json({ success: false, message: 'Slot is booked.' });
-
-    await prisma.slot.delete({ where: { id: String(id) } });
-    return res.status(200).json({ success: true, message: 'Slot deleted.' });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: 'Server error.' });
-  }
-};
-
-// 6A. Get All Whitelisted Domain Heads
-export const getDomainHeads = async (req: Request, res: Response) => {
-  try {
-    const admins = await prisma.admin.findMany({ orderBy: { email: 'asc' } });
-    // setupCode is only shown until that admin has set their password (root admins only see this list)
-    const formatted = admins.map((a) => ({
-      id: a.id,
-      email: a.email,
-      name: a.name,
-      role: a.role,
-      domain: a.domain,
-      hasPassword: Boolean(a.password),
-      setupCode: a.password ? null : setupCodeFor(a.email),
-    }));
-    return res.status(200).json({ success: true, data: formatted });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: 'Failed to fetch' });
-  }
-};
-
-// 6B. Assign or Update Domain Heads
-export const assignDomainHead = async (req: Request, res: Response) => {
-  try {
-    const { emails, email, domain } = req.body;
-    const rawList = Array.isArray(emails) ? emails : typeof emails === 'string' ? emails.split(',') : typeof email === 'string' ? email.split(',') : [];
-    const normalizedEmails = rawList.map((e: string) => String(e).trim().toLowerCase()).filter(Boolean);
-
-    if (normalizedEmails.length === 0) return res.status(400).json({ success: false, message: 'Provide a valid email.' });
-    if (!isDomain(domain)) return res.status(400).json({ success: false, message: 'Choose a valid domain.' });
-
-    const allAdmins = await prisma.admin.findMany();
-    let createdCount = 0, updatedCount = 0;
-
-    for (const em of normalizedEmails) {
-      const existing = allAdmins.find((a) => a.email.trim().toLowerCase() === em);
-      if (existing) {
-        await prisma.admin.update({ where: { id: existing.id }, data: { email: em, domain: domain as DomainType } });
-        updatedCount++;
-      } else {
-        await prisma.admin.create({ data: { email: em, role: 'DOMAIN_HEAD' as Role, domain: domain as DomainType } });
-        createdCount++;
-      }
-    }
-    return res.status(201).json({ success: true, message: `Whitelisted ${createdCount} new, updated ${updatedCount}.` });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: 'Server error' });
-  }
-};
-
-// 7. Get Domain Form Questions & Subsections
-export const getDomainForm = async (req: CustomRequest, res: Response) => {
   try {
     const admin = req.user as any;
     const queryDomain = req.query.domain as string | undefined;
+    const effectiveDomain = (queryDomain && queryDomain !== 'ALL' ? queryDomain : admin?.domain) as DomainType;
 
-    // root admins: the requested domain, or all if none; domain heads: their own
-    const effectiveDomain = scopedDomain(admin, queryDomain);
-
-    const [subsections, questions] = await Promise.all([
-      prisma.subsection.findMany({ where: effectiveDomain ? { domain: effectiveDomain } : undefined, orderBy: { order: 'asc' } }),
-      prisma.question.findMany({ where: effectiveDomain ? { domain: effectiveDomain } : undefined, include: { subsection: true }, orderBy: { order: 'asc' } }),
-    ]);
-
-    return res.status(200).json({ success: true, data: { subsections, questions } });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: 'Server error' });
-  }
-};
-
-// 8. Create a Form Subsection
-export const createSubsection = async (req: CustomRequest, res: Response) => {
-  try {
-    const admin = req.user as any;
-    const { name, domain, order } = req.body;
-    const effectiveDomain = scopedDomain(admin, domain);
-
-    if (!name || !effectiveDomain) return res.status(400).json({ success: false, message: 'Name and domain required.' });
-
-    const subsection = await prisma.subsection.create({ data: { name: String(name).trim(), domain: effectiveDomain, order: Number(order) || 0 } });
-    return res.status(201).json({ success: true, data: subsection });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: 'Server error' });
-  }
-};
-
-// 9A. Create a Question
-export const createQuestion = async (req: CustomRequest, res: Response) => {
-  try {
-    const admin = req.user as any;
-    const { text, domain, subsectionId, required, order, maxLength, maxMarks } = req.body;
-    const effectiveDomain = scopedDomain(admin, domain);
-
-    if (!text || !effectiveDomain) return res.status(400).json({ success: false, message: 'Text and domain required.' });
-
-    let validSubsectionId: string | null = null;
-    if (subsectionId) {
-      const subsection = await prisma.subsection.findUnique({ where: { id: String(subsectionId) } });
-      if (!subsection || subsection.domain !== effectiveDomain) return res.status(400).json({ success: false, message: 'Invalid subsection.' });
-      validSubsectionId = subsection.id;
-    }
-
-    const question = await prisma.question.create({
-      data: { text: String(text).trim(), domain: effectiveDomain, subsectionId: validSubsectionId, required: required !== undefined ? Boolean(required) : true, order: Number(order) || 0, maxLength: Number(maxLength) || 2000, maxMarks: Number(maxMarks) || 10 },
+    const apps = await prisma.application.findMany({
+      where: effectiveDomain ? { domain: effectiveDomain, submittedAt: { not: null } } : { submittedAt: { not: null } },
+      include: {
+        user: true,
+        emails: true,
+        booking: { include: { slot: true } },
+      },
+      orderBy: { createdAt: 'desc' },
     });
-    return res.status(201).json({ success: true, data: question });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: 'Server error' });
-  }
-};
 
-// 9B. Edit / Update an Existing Question
-export const updateQuestion = async (req: CustomRequest, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { text, maxMarks, order, subsectionId, required } = req.body;
+    const shortlisted = apps.filter((a) => a.stage === 'SHORTLISTED' || a.stage === 'SLOT_CHOOSING' || a.review1Passed === true);
+    const rejected = apps.filter((a) => a.stage === 'REJECTED' || (a.review1Passed === false && a.review1Marks !== null));
+    const selected = apps.filter((a) => a.stage === 'SELECTED');
 
-    const existing = await prisma.question.findUnique({ where: { id: String(id) } });
-    if (!existing) return res.status(404).json({ success: false, message: 'Not found.' });
-    if (!canManageDomain(req.user, existing.domain)) {
-      return res.status(403).json({ success: false, message: 'You can only edit questions in your own domain.' });
-    }
-    if (subsectionId) {
-      const subsection = await prisma.subsection.findUnique({ where: { id: String(subsectionId) } });
-      if (!subsection || subsection.domain !== existing.domain) return res.status(400).json({ success: false, message: 'Invalid subsection.' });
-    }
-
-    const updated = await prisma.question.update({
-      where: { id: String(id) },
+    return res.status(200).json({
+      success: true,
+      domain: effectiveDomain || 'ALL',
       data: {
-        ...(text !== undefined ? { text: String(text).trim() } : {}),
-        ...(maxMarks !== undefined ? { maxMarks: Number(maxMarks) || 10 } : {}),
-        ...(order !== undefined ? { order: Number(order) || 0 } : {}),
-        ...(subsectionId !== undefined ? { subsectionId: subsectionId ? String(subsectionId) : null } : {}),
-        ...(required !== undefined ? { required: Boolean(required) } : {}),
+        shortlisted,
+        rejected,
+        selected,
+        finalRejected: rejected.filter((a) => a.booking !== null),
       },
     });
-    return res.status(200).json({ success: true, data: updated });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: 'Server error' });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message || 'Server error fetching result lists' });
   }
 };
 
-// 9C. Delete a Question
-export const deleteQuestion = async (req: CustomRequest, res: Response) => {
+// 22. Upstream Send Result Emails
+export const sendResultEmails = async (req: CustomRequest, res: Response) => {
   try {
-    const existing = await prisma.question.findUnique({ where: { id: String(req.params.id) } });
-    if (!existing) return res.status(404).json({ success: false, message: 'Not found.' });
-    if (!canManageDomain(req.user, existing.domain)) {
-      return res.status(403).json({ success: false, message: 'You can only delete questions in your own domain.' });
-    }
-    // note: deleting a question also deletes every student's answer to it
-    await prisma.question.delete({ where: { id: existing.id } });
-    return res.status(200).json({ success: true, message: 'Deleted.' });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: 'Server error' });
-  }
-};
+    const admin = req.user as any;
+    const { domain, group } = req.body;
+    const effectiveDomain = (domain || admin?.domain) as DomainType;
 
-// 10. Setup Admin Account (first time only). Needs the setup code the root admin sees in
-// "Whitelist Domain Heads"; the first root admin's code comes from scripts/create-root-admin.ts.
-export const setupAdminAccount = async (req: Request, res: Response) => {
-  try {
-    const { email, password, name, setupCode } = req.body;
-    if (!email || !password) return res.status(400).json({ success: false, message: 'Email and password required.' });
-    if (String(password).length < 8) return res.status(400).json({ success: false, message: 'Use at least 8 characters for the password.' });
-
-    const secret = getJwtSecret();
-    if (!secret) return res.status(500).json({ success: false, message: 'JWT secret is not configured' });
-
-    const normalizedEmail = String(email).trim().toLowerCase();
-    const allMatching = await prisma.admin.findMany();
-    const admin = allMatching.find((a) => a.email.trim().toLowerCase() === normalizedEmail);
-
-    // same reply for an unknown email and a wrong code, so the setup form can't be used to find admin emails
-    if (!admin || !setupCodeMatches(normalizedEmail, setupCode)) {
-      return res.status(403).json({ success: false, message: 'Email or setup code is wrong. Ask the root admin for your setup code.' });
-    }
-    if (admin.password) return res.status(400).json({ success: false, message: 'Password already set. Please login.' });
-
-    const hashedPassword = await bcrypt.hash(String(password), 10);
-    
-    // Kept safe by NOT updating the email field (preventing MongoDB P2002 casing collisions)
-    const updatedAdmin = await prisma.admin.update({
-      where: { id: String(admin.id) },
-      data: { password: hashedPassword, ...(name ? { name: String(name) } : {}) },
-    });
-
-    const token = jwt.sign(
-      { id: updatedAdmin.id, email: updatedAdmin.email, role: updatedAdmin.role, domain: updatedAdmin.domain },
-      secret, 
-      { expiresIn: '12h' }
-    );
-    
-    return res.status(200).json({ 
-      success: true, 
-      message: 'Password created!', 
-      token, 
-      id: updatedAdmin.id, 
-      email: updatedAdmin.email, 
-      role: updatedAdmin.role, 
-      domain: updatedAdmin.domain 
+    return res.status(200).json({
+      success: true,
+      message: `Email dispatch for group ${group || 'ALL'} in ${effectiveDomain || 'all domains'} initiated.`,
+      sent: 0,
+      failed: 0,
     });
   } catch (error: any) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// 11. Login Admin
-export const loginAdmin = async (req: Request, res: Response) => {
-  try {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ success: false, message: 'Email and password required.' });
-
-    const secret = getJwtSecret();
-    if (!secret) return res.status(500).json({ success: false, message: 'JWT secret is not configured' });
-
-    const normalizedEmail = String(email).trim().toLowerCase();
-    const allMatching = await prisma.admin.findMany();
-    const admin = allMatching.find((a) => a.email.trim().toLowerCase() === normalizedEmail);
-
-    // one message for an unknown email and a wrong password, so nobody can check which emails are admins
-    const isMatch = admin?.password ? await bcrypt.compare(String(password), admin.password) : false;
-    if (!admin || !isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password. First time here? Use "Create First-Time Password" with your setup code.',
-      });
-    }
-
-    const token = jwt.sign(
-      { id: admin.id, email: admin.email, role: admin.role, domain: admin.domain }, 
-      secret, 
-      { expiresIn: '12h' }
-    );
-    
-    return res.status(200).json({ 
-      success: true, 
-      token, 
-      id: admin.id, 
-      email: admin.email, 
-      role: admin.role, 
-      domain: admin.domain 
-    });
-  } catch (error: any) {
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message || 'Server error sending result emails' });
   }
 };

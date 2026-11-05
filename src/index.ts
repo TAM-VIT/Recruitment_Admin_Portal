@@ -7,7 +7,6 @@ const app = express();
 app.set('trust proxy', 1); // behind one proxy on hosts like Render
 
 // Only the admin frontend(s) listed in CORS_ORIGIN (comma separated) may call this backend from a browser.
-// Without it, any site can, so set it on every deployment.
 const allowedOrigins = (process.env.CORS_ORIGIN ?? '')
   .split(',')
   .map((s) => s.trim())
@@ -26,9 +25,13 @@ const PORT = process.env.PORT || 5000;
 app.use('/api/admin', adminRoutes);
 
 app.get('/', (req: Request, res: Response) => {
-    res.send('Hello from the TAM-VIT Admin Portal Backend!');
+  res.send('Hello from the TAM-VIT Admin Portal Backend!');
 });
 
-app.listen(PORT, () => {
+export { app };
+
+if (process.env.NODE_ENV !== 'test' && require.main === module) {
+  app.listen(PORT, () => {
     console.log(`Server is running at http://localhost:${PORT}`);
-});
+  });
+}
