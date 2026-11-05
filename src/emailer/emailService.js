@@ -17,30 +17,30 @@ const LOGO_PATH = path.resolve(__dirname, "assets", "LOGO.png");
  * @returns {Object|null} Email configuration object or null if invalid
  */
 function prepareEmail(applicant) {
-  if (!applicant || typeof applicant !== "object") {
-    return null;
-  }
+    if (!applicant || typeof applicant !== "object") {
+        return null;
+    }
 
-  let isShortlisted;
-  if (typeof applicant.shortlisted === "boolean") {
-    isShortlisted = applicant.shortlisted;
-  } else if (applicant.status === "shortlisted") {
-    isShortlisted = true;
-  } else if (applicant.status === "not shortlisted") {
-    isShortlisted = false;
-  } else {
-    return null;
-  }
+    let isShortlisted;
+    if (typeof applicant.shortlisted === "boolean") {
+        isShortlisted = applicant.shortlisted;
+    } else if (applicant.status === "shortlisted") {
+        isShortlisted = true;
+    } else if (applicant.status === "not shortlisted") {
+        isShortlisted = false;
+    } else {
+        return null;
+    }
 
-  const candidateName = (applicant.name || "Candidate").trim();
+    const candidateName = (applicant.name || "Candidate").trim();
 
-  let subject;
-  let message;
-  let html;
+    let subject;
+    let message;
+    let html;
 
-  if (isShortlisted) {
-    subject = "Recruitment Update: Shortlisted for Interview";
-    message = `Dear ${candidateName},
+    if (isShortlisted) {
+        subject = "Recruitment Update: Shortlisted for Interview";
+        message = `Dear ${candidateName},
 
 Congratulations! We are pleased to inform you that you have been shortlisted for the next stage of our recruitment process.
 
@@ -51,47 +51,77 @@ If you have any questions or require accommodations, feel free to reply directly
 Best regards,
 Recruitment Team`;
 
-    html = `
+        html = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark light">
+    <meta name="supported-color-schemes" content="dark light">
     <title>${subject}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=IM+Fell+English:ital@0;1&family=Old+Standard+TT:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            color-scheme: dark light;
+            supported-color-schemes: dark light;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+            background-color: #0B1220;
+        }
+        table, td {
+            mso-table-lspace: 0pt;
+            mso-table-rspace: 0pt;
+        }
+        img {
+            -ms-interpolation-mode: bicubic;
+            border: 0;
+            outline: none;
+            text-decoration: none;
+        }
+        @media only screen and (max-width: 620px) {
+            .wrapper-table {
+                padding: 12px 6px !important;
+            }
+            .main-container {
+                width: 100% !important;
+                max-width: 100% !important;
+                border-radius: 6px !important;
+            }
+            .body-padding {
+                padding-left: 18px !important;
+                padding-right: 18px !important;
+            }
+            .headline-text {
+                font-size: 21px !important;
+                line-height: 1.3 !important;
+            }
+            .callout-box {
+                padding: 14px 16px !important;
+            }
+        }
+    </style>
 </head>
 
-<body style="margin:0;padding:0;background:#211b17;">
+<body bgcolor="#0B1220" style="margin:0;padding:0;background-color:#0B1220;color:#F1F5F9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
 
-<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#211b17" style="padding:18px 8px;">
-<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0B1220" class="wrapper-table" style="background-color:#0B1220;padding:28px 12px;">
+<tr><td align="center" bgcolor="#0B1220" style="background-color:#0B1220;">
 
-<table width="640" cellpadding="0" cellspacing="0" border="0" bgcolor="#eee4c9" style="width:100%;max-width:640px;color:#29231d;">
+<!-- Main Centered Container -->
+<table width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#111C32" class="main-container" style="width:100%;max-width:600px;background-color:#111C32;border:1px solid #263B5A;border-top:3px solid #2563EB;border-radius:8px;overflow:hidden;">
 
-    <!-- Newspaper metadata -->
+    <!-- Header Section (100–150px vertical height with prominent logo) -->
     <tr>
-        <td style="padding:12px 20px 6px;">
-            <table width="100%" cellpadding="0" cellspacing="0">
+        <td align="center" bgcolor="#111C32" style="padding:26px 20px 20px;background-color:#111C32;border-bottom:1px solid #263B5A;">
+            <table cellpadding="0" cellspacing="0" border="0" align="center" bgcolor="#111C32" style="background-color:#111C32;margin:0 auto;">
                 <tr>
-                    <td style="font-family:'Old Standard TT',Georgia,serif;font-size:10px;letter-spacing:1.5px;color:#514638;">
-                        VOLUME I · RECRUITMENT EDITION
-                    </td>
-                    <td align="right" style="font-family:'Old Standard TT',Georgia,serif;font-size:10px;letter-spacing:1.5px;color:#514638;">
-                        THE AI &amp; ML CLUB
-                    </td>
-                </tr>
-            </table>
-        </td>
-    </tr>
-
-    <!-- Masthead -->
-    <tr>
-        <td style="padding:0 20px;">
-            <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                    <td align="center" style="border-top:2px solid #29231d;border-bottom:1px solid #29231d;padding:10px 0 8px;">
-                        <img src="cid:tam-club-logo" alt="The AI &amp; ML Club Logo" width="80" height="78" style="display:block;margin:0 auto 5px;border:0;outline:none;text-decoration:none;max-width:80px;height:auto;" />
-                        <div style="font-family:'IM Fell English',Georgia,serif;font-size:12px;font-style:italic;color:#71634e;line-height:1.3;">
+                    <td align="center" bgcolor="#111C32" style="background-color:#111C32;">
+                        <img src="cid:tam-club-logo" alt="The AI &amp; ML Club Logo" width="124" height="120" style="display:block;margin:0 auto 10px;border:0;outline:none;text-decoration:none;width:124px;max-width:124px;height:auto;" />
+                        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-style:italic;color:#94A3B8;letter-spacing:0.3px;line-height:1.4;">
                             It's a place for everyone to learn
                         </div>
                     </td>
@@ -100,112 +130,73 @@ Recruitment Team`;
         </td>
     </tr>
 
-    <!-- Edition strip -->
+    <!-- Body Content Area (Left-aligned, natural hierarchy) -->
     <tr>
-        <td style="padding:7px 20px 0;">
-            <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #71634e;">
-                <tr>
-                    <td width="50%" align="center" style="padding:5px 3px;font-family:'Old Standard TT',Georgia,serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#514638;border-right:1px solid #71634e;">
-                        CLUB RECRUITMENT
-                    </td>
-                    <td width="50%" align="center" style="padding:5px 3px;font-family:'Old Standard TT',Georgia,serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#514638;">
-                        SHORTLIST ANNOUNCEMENT
-                    </td>
-                </tr>
-            </table>
-        </td>
-    </tr>
+        <td bgcolor="#111C32" class="body-padding" style="padding:28px 32px 12px;background-color:#111C32;text-align:left;">
 
-    <!-- Headline -->
-    <tr>
-        <td align="center" style="padding:16px 20px 10px;">
-            <div style="font-family:'Old Standard TT',Georgia,serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#963d35;margin-bottom:8px;">
-                ✦ AN ANNOUNCEMENT FROM THE RECRUITMENT DESK ✦
+            <!-- Single Prominent Natural Heading -->
+            <div class="headline-text" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:24px;font-weight:700;letter-spacing:-0.3px;line-height:1.3;color:#F1F5F9;margin:0 0 8px;text-align:left;">
+                YOU'VE MADE THE LIST!
             </div>
 
-            <div style="font-family:'Anton',Impact,sans-serif;font-size:32px;font-weight:400;letter-spacing:0.02em;line-height:1.15;text-transform:uppercase;color:#963d35;">
-                YOU'VE MADE<br>THE LIST!
-            </div>
-
-            <div style="font-family:'IM Fell English',Georgia,serif;font-size:13px;font-style:italic;line-height:1.4;color:#75654e;margin-top:6px;">
+            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;color:#94A3B8;line-height:1.5;margin-bottom:22px;text-align:left;">
                 Your journey with TAM moves to its next chapter.
             </div>
-        </td>
-    </tr>
 
-    <!-- Divider -->
-    <tr>
-        <td style="padding:0 20px;">
-            <div style="border-top:2px solid #29231d;border-bottom:1px solid #29231d;height:2px;font-size:0;line-height:0;">&nbsp;</div>
-        </td>
-    </tr>
-
-    <!-- Message -->
-    <tr>
-        <td style="padding:14px 22px;font-family:'IM Fell English',Georgia,serif;font-size:14px;line-height:1.65;color:#30291f;">
-            <p style="margin:0 0 9px;">Dear <strong>${candidateName}</strong>,</p>
-
-            <p style="margin:0 0 9px;">
-                We are delighted to inform you that you have been
-                <strong>shortlisted</strong> for the next stage of the TAM recruitment process!
+            <!-- Greeting and Congratulatory Message -->
+            <p style="margin:0 0 14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.65;color:#F1F5F9;">
+                Dear <strong style="color:#F1F5F9;font-weight:600;">${candidateName}</strong>,
             </p>
 
-            <p style="margin:0;">
-                Your application stood out to our review team, and we're excited to see what you bring to the table.
-                This is just the beginning.
+            <p style="margin:0 0 14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.65;color:#CBD5E1;">
+                We are delighted to inform you that you have been <strong style="color:#38BDF8;font-weight:600;">shortlisted</strong> for the next stage of the TAM recruitment process!
             </p>
-        </td>
-    </tr>
 
-    <!-- Next step bulletin -->
-    <tr>
-        <td style="padding:0 20px 14px;">
-            <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #514638;">
+            <p style="margin:0 0 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.65;color:#CBD5E1;">
+                Your application stood out to our review team, and we're excited to see what you bring to the table. This is just the beginning.
+            </p>
+
+            <!-- Clearly Identifiable Next-Steps Section -->
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0B1220" class="callout-box" style="border:1px solid #263B5A;border-left:3px solid #2563EB;border-radius:6px;background-color:#0B1220;margin:0 0 22px;">
                 <tr>
-                    <td align="center" style="padding:6px 10px;background:#ded0ae;border-bottom:1px solid #514638;font-family:'Old Standard TT',Georgia,serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#963d35;">
-                        ✦ WHAT HAPPENS NEXT? ✦
-                    </td>
-                </tr>
-                <tr>
-                    <td style="padding:12px 16px;font-family:'IM Fell English',Georgia,serif;color:#30291f;">
-                        <div style="font-size:16px;font-weight:bold;margin-bottom:4px;">
+                    <td bgcolor="#0B1220" style="padding:16px 20px;background-color:#0B1220;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+                        <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#38BDF8;text-transform:uppercase;margin-bottom:4px;">
+                            ✦ WHAT HAPPENS NEXT?
+                        </div>
+                        <div style="font-size:16px;font-weight:600;color:#F1F5F9;margin-bottom:6px;">
                             Select your interview slot
                         </div>
-                        <div style="font-size:13px;line-height:1.6;">
+                        <div style="font-size:13px;line-height:1.6;color:#94A3B8;">
                             Log in to your candidate recruitment portal to choose your preferred interview slot with our domain leads.
                         </div>
                     </td>
                 </tr>
             </table>
-        </td>
-    </tr>
 
-    <!-- Closing -->
-    <tr>
-        <td style="padding:0 22px 16px;font-family:'IM Fell English',Georgia,serif;color:#30291f;">
-            <p style="font-size:13px;line-height:1.6;margin:0 0 10px;">
+            <!-- Closing and Support Info -->
+            <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;line-height:1.6;margin:0 0 18px;color:#94A3B8;">
                 If you have any questions or require accommodations, feel free to contact us on WhatsApp.
             </p>
-            <div style="font-size:14px;line-height:1.5;">
+
+            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.6;color:#CBD5E1;margin-bottom:24px;">
                 Best regards,<br>
-                <strong>The Recruitment Desk</strong>
+                <strong style="color:#F1F5F9;font-weight:600;">The Recruitment Desk</strong><br>
+                <span style="font-size:12px;color:#38BDF8;">The AI &amp; ML Club · VIT Vellore</span>
             </div>
-            <div style="font-size:11px;font-style:italic;color:#75654e;margin-top:2px;">
-                AI &amp; ML Club · VIT Vellore
-            </div>
+
         </td>
     </tr>
 
-    <!-- Footer -->
+    <!-- Clean, Understated Footer -->
     <tr>
-        <td style="padding:8px 20px;background:#ded0ae;border-top:2px solid #514638;">
-            <table width="100%" cellpadding="0" cellspacing="0">
+        <td bgcolor="#0B1220" class="body-padding" style="padding:12px 32px;background-color:#0B1220;border-top:1px solid #263B5A;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0B1220" style="background-color:#0B1220;">
                 <tr>
-                    <td style="font-family:'Old Standard TT',Georgia,serif;font-size:9px;font-weight:bold;letter-spacing:0.12em;color:#514638;">
-                        THE TAM TIMES
+                    <td align="left" bgcolor="#0B1220" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;color:#94A3B8;background-color:#0B1220;">
+                        The AI &amp; ML Club · VIT Vellore
                     </td>
-                    <td align="right" style="font-family:'Old Standard TT',Georgia,serif;font-size:9px;letter-spacing:0.12em;color:#514638;">
-                        RECRUITMENT DESK
+                    <td align="right" bgcolor="#0B1220" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;color:#94A3B8;background-color:#0B1220;">
+                        Recruitment Desk
                     </td>
                 </tr>
             </table>
@@ -219,9 +210,9 @@ Recruitment Team`;
 </body>
 </html>
 `.trim();
-  } else {
-    subject = "Recruitment Application Update";
-    message = `Dear ${candidateName},
+    } else {
+        subject = "Recruitment Application Update";
+        message = `Dear ${candidateName},
 
 Thank you for your interest and for taking the time to apply for our recruitment drive.
 
@@ -234,47 +225,77 @@ We wish you all the very best in your academic and professional endeavors.
 Warm regards,
 Recruitment Team`;
 
-    html = `
+        html = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark light">
+    <meta name="supported-color-schemes" content="dark light">
     <title>${subject}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=IM+Fell+English:ital@0;1&family=Old+Standard+TT:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            color-scheme: dark light;
+            supported-color-schemes: dark light;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+            background-color: #0B1220;
+        }
+        table, td {
+            mso-table-lspace: 0pt;
+            mso-table-rspace: 0pt;
+        }
+        img {
+            -ms-interpolation-mode: bicubic;
+            border: 0;
+            outline: none;
+            text-decoration: none;
+        }
+        @media only screen and (max-width: 620px) {
+            .wrapper-table {
+                padding: 12px 6px !important;
+            }
+            .main-container {
+                width: 100% !important;
+                max-width: 100% !important;
+                border-radius: 6px !important;
+            }
+            .body-padding {
+                padding-left: 18px !important;
+                padding-right: 18px !important;
+            }
+            .headline-text {
+                font-size: 21px !important;
+                line-height: 1.3 !important;
+            }
+            .callout-box {
+                padding: 14px 16px !important;
+            }
+        }
+    </style>
 </head>
 
-<body style="margin:0;padding:0;background:#211b17;">
+<body bgcolor="#0B1220" style="margin:0;padding:0;background-color:#0B1220;color:#F1F5F9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
 
-<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#211b17" style="padding:18px 8px;">
-<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0B1220" class="wrapper-table" style="background-color:#0B1220;padding:28px 12px;">
+<tr><td align="center" bgcolor="#0B1220" style="background-color:#0B1220;">
 
-<table width="640" cellpadding="0" cellspacing="0" border="0" bgcolor="#eee4c9" style="width:100%;max-width:640px;color:#29231d;">
+<!-- Main Centered Container -->
+<table width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#111C32" class="main-container" style="width:100%;max-width:600px;background-color:#111C32;border:1px solid #263B5A;border-top:3px solid #2563EB;border-radius:8px;overflow:hidden;">
 
-    <!-- Newspaper metadata -->
+    <!-- Header Section (100–150px vertical height with prominent logo) -->
     <tr>
-        <td style="padding:12px 20px 6px;">
-            <table width="100%" cellpadding="0" cellspacing="0">
+        <td align="center" bgcolor="#111C32" style="padding:26px 20px 20px;background-color:#111C32;border-bottom:1px solid #263B5A;">
+            <table cellpadding="0" cellspacing="0" border="0" align="center" bgcolor="#111C32" style="background-color:#111C32;margin:0 auto;">
                 <tr>
-                    <td style="font-family:'Old Standard TT',Georgia,serif;font-size:10px;letter-spacing:1.5px;color:#514638;">
-                        VOLUME I · RECRUITMENT EDITION
-                    </td>
-                    <td align="right" style="font-family:'Old Standard TT',Georgia,serif;font-size:10px;letter-spacing:1.5px;color:#514638;">
-                        THE AI &amp; ML CLUB
-                    </td>
-                </tr>
-            </table>
-        </td>
-    </tr>
-
-    <!-- Masthead -->
-    <tr>
-        <td style="padding:0 20px;">
-            <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                    <td align="center" style="border-top:2px solid #29231d;border-bottom:1px solid #29231d;padding:10px 0 8px;">
-                        <img src="cid:tam-club-logo" alt="The AI &amp; ML Club Logo" width="80" height="78" style="display:block;margin:0 auto 5px;border:0;outline:none;text-decoration:none;max-width:80px;height:auto;" />
-                        <div style="font-family:'IM Fell English',Georgia,serif;font-size:12px;font-style:italic;color:#71634e;line-height:1.3;">
+                    <td align="center" bgcolor="#111C32" style="background-color:#111C32;">
+                        <img src="cid:tam-club-logo" alt="The AI &amp; ML Club Logo" width="124" height="120" style="display:block;margin:0 auto 10px;border:0;outline:none;text-decoration:none;width:124px;max-width:124px;height:auto;" />
+                        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-style:italic;color:#94A3B8;letter-spacing:0.3px;line-height:1.4;">
                             It's a place for everyone to learn
                         </div>
                     </td>
@@ -283,110 +304,75 @@ Recruitment Team`;
         </td>
     </tr>
 
-    <!-- Edition strip -->
+    <!-- Body Content Area (Left-aligned, natural hierarchy) -->
     <tr>
-        <td style="padding:7px 20px 0;">
-            <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #71634e;">
-                <tr>
-                    <td width="50%" align="center" style="padding:5px 3px;font-family:'Old Standard TT',Georgia,serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#514638;border-right:1px solid #71634e;">
-                        CLUB RECRUITMENT
-                    </td>
-                    <td width="50%" align="center" style="padding:5px 3px;font-family:'Old Standard TT',Georgia,serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#514638;">
-                        APPLICATION UPDATE
-                    </td>
-                </tr>
-            </table>
-        </td>
-    </tr>
+        <td bgcolor="#111C32" class="body-padding" style="padding:28px 32px 12px;background-color:#111C32;text-align:left;">
 
-    <!-- Headline -->
-    <tr>
-        <td align="center" style="padding:16px 20px 10px;">
-            <div style="font-family:'Old Standard TT',Georgia,serif;font-size:10px;font-weight:bold;letter-spacing:0.12em;color:#75654e;margin-bottom:8px;">
-                A MESSAGE FROM THE RECRUITMENT DESK
+            <!-- Single Prominent Respectful Heading -->
+            <div class="headline-text" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:22px;font-weight:700;letter-spacing:-0.3px;line-height:1.3;color:#F1F5F9;margin:0 0 8px;text-align:left;">
+                EVERY STORY HAS ITS CHAPTER.
             </div>
 
-            <div style="font-family:'Anton',Impact,sans-serif;font-size:30px;font-weight:400;letter-spacing:0.02em;line-height:1.15;text-transform:uppercase;color:#29231d;">
-                EVERY STORY<br>HAS ITS CHAPTER.
-            </div>
-
-            <div style="font-family:'IM Fell English',Georgia,serif;font-size:13px;font-style:italic;line-height:1.4;color:#75654e;margin-top:6px;">
+            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;color:#94A3B8;line-height:1.5;margin-bottom:22px;text-align:left;">
                 An update regarding your TAM recruitment application.
             </div>
-        </td>
-    </tr>
 
-    <!-- Divider -->
-    <tr>
-        <td style="padding:0 20px;">
-            <div style="border-top:2px solid #29231d;border-bottom:1px solid #29231d;height:2px;font-size:0;line-height:0;">&nbsp;</div>
-        </td>
-    </tr>
+            <!-- Greeting and Rejection Message -->
+            <p style="margin:0 0 14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.65;color:#F1F5F9;">
+                Dear <strong style="color:#F1F5F9;font-weight:600;">${candidateName}</strong>,
+            </p>
 
-    <!-- Message -->
-    <tr>
-        <td style="padding:14px 22px;font-family:'IM Fell English',Georgia,serif;font-size:14px;line-height:1.65;color:#30291f;">
-            <p style="margin:0 0 9px;">Dear <strong>${candidateName}</strong>,</p>
-
-            <p style="margin:0 0 9px;">
+            <p style="margin:0 0 14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.65;color:#CBD5E1;">
                 Thank you for your interest in the TAM recruitment drive and for taking the time to share your application with us.
             </p>
 
-            <p style="margin:0 0 9px;">
+            <p style="margin:0 0 14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.65;color:#CBD5E1;">
                 We received an exceptionally large number of applications this season. After careful consideration, we regret to inform you that we will not be moving forward with your application for this recruitment cycle.
             </p>
 
-            <p style="margin:0 0 9px;">
+            <p style="margin:0 0 14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.65;color:#CBD5E1;">
                 This was a highly competitive process, and this outcome does not diminish your abilities, efforts, or potential. We genuinely appreciate the enthusiasm you showed in being a part of TAM.
             </p>
 
-            <p style="margin:0;">
+            <p style="margin:0 0 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.65;color:#CBD5E1;">
                 We hope this is not the end of your story with us. We warmly encourage you to apply again in future recruitment cycles.
             </p>
-        </td>
-    </tr>
 
-    <!-- Editorial quote -->
-    <tr>
-        <td style="padding:0 20px 14px;">
-            <table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #514638;border-bottom:1px solid #514638;">
+            <!-- Restrained Presentation of Encouraging Quote -->
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0B1220" class="callout-box" style="border:1px solid #263B5A;border-left:3px solid #38BDF8;border-radius:6px;background-color:#0B1220;margin:0 0 22px;">
                 <tr>
-                    <td align="center" style="padding:10px 14px;">
-                        <div style="font-family:'IM Fell English',Georgia,serif;font-size:15px;font-style:italic;line-height:1.5;color:#514638;">
+                    <td bgcolor="#0B1220" style="padding:16px 20px;background-color:#0B1220;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+                        <div style="font-size:14px;font-style:italic;line-height:1.6;color:#F1F5F9;">
                             "Every opportunity is a chance to learn, grow, and begin again."
                         </div>
                     </td>
                 </tr>
             </table>
-        </td>
-    </tr>
 
-    <!-- Closing -->
-    <tr>
-        <td style="padding:0 22px 16px;font-family:'IM Fell English',Georgia,serif;color:#30291f;">
-            <p style="font-size:13px;line-height:1.6;margin:0 0 10px;">
+            <!-- Closing and Signature -->
+            <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;line-height:1.6;margin:0 0 18px;color:#94A3B8;">
                 We wish you every success in your academic and professional journey. Thank you once again for considering TAM.
             </p>
-            <div style="font-size:14px;line-height:1.5;">
+
+            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.6;color:#CBD5E1;margin-bottom:24px;">
                 Warm regards,<br>
-                <strong>The Recruitment Desk</strong>
+                <strong style="color:#F1F5F9;font-weight:600;">The Recruitment Desk</strong><br>
+                <span style="font-size:12px;color:#38BDF8;">The AI &amp; ML Club · VIT Vellore</span>
             </div>
-            <div style="font-size:11px;font-style:italic;color:#75654e;margin-top:2px;">
-                AI &amp; ML Club · VIT Vellore
-            </div>
+
         </td>
     </tr>
 
-    <!-- Footer -->
+    <!-- Clean, Understated Footer -->
     <tr>
-        <td style="padding:8px 20px;background:#ded0ae;border-top:2px solid #514638;">
-            <table width="100%" cellpadding="0" cellspacing="0">
+        <td bgcolor="#0B1220" class="body-padding" style="padding:12px 32px;background-color:#0B1220;border-top:1px solid #263B5A;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0B1220" style="background-color:#0B1220;">
                 <tr>
-                    <td style="font-family:'Old Standard TT',Georgia,serif;font-size:9px;font-weight:bold;letter-spacing:0.12em;color:#514638;">
-                        THE TAM TIMES
+                    <td align="left" bgcolor="#0B1220" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;color:#94A3B8;background-color:#0B1220;">
+                        The AI &amp; ML Club · VIT Vellore
                     </td>
-                    <td align="right" style="font-family:'Old Standard TT',Georgia,serif;font-size:9px;letter-spacing:0.12em;color:#514638;">
-                        RECRUITMENT DESK
+                    <td align="right" bgcolor="#0B1220" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;color:#94A3B8;background-color:#0B1220;">
+                        Recruitment Desk
                     </td>
                 </tr>
             </table>
@@ -400,25 +386,27 @@ Recruitment Team`;
 </body>
 </html>
 `.trim();
-  }
+    }
 
-  const attachments = [];
-  if (fs.existsSync(LOGO_PATH)) {
-    attachments.push({
-      filename: "LOGO.png",
-      path: LOGO_PATH,
-      cid: "tam-club-logo"
-    });
-  }
+    const attachments = [];
+    if (fs.existsSync(LOGO_PATH)) {
+        attachments.push({
+            filename: "LOGO.png",
+            path: LOGO_PATH,
+            cid: "tam-club-logo",
+            contentDisposition: "inline",
+            contentType: "image/png"
+        });
+    }
 
-  return {
-    to: applicant.email,
-    subject,
-    message,
-    html,
-    shortlisted: isShortlisted,
-    attachments
-  };
+    return {
+        to: applicant.email,
+        subject,
+        message,
+        html,
+        shortlisted: isShortlisted,
+        attachments
+    };
 }
 
 /**
@@ -432,31 +420,31 @@ Recruitment Team`;
  * @returns {Promise<{ success: boolean, recipient: string, shortlisted: boolean, messageId: string, emailData: Object, info: Object }>}
  */
 async function sendShortlistEmail(applicant, customTransporter = null) {
-  const validation = validateApplicant(applicant);
-  if (!validation.isValid) {
-    throw new Error(`Validation Error: ${validation.error}`);
-  }
+    const validation = validateApplicant(applicant);
+    if (!validation.isValid) {
+        throw new Error(`Validation Error: ${validation.error}`);
+    }
 
-  const emailData = prepareEmail(applicant);
-  if (!emailData) {
-    throw new Error("Unable to prepare email: invalid applicant status or data.");
-  }
+    const emailData = prepareEmail(applicant);
+    if (!emailData) {
+        throw new Error("Unable to prepare email: invalid applicant status or data.");
+    }
 
-  const info = await sendEmail(emailData, customTransporter);
+    const info = await sendEmail(emailData, customTransporter);
 
-  const isShortlisted = typeof applicant.shortlisted === "boolean"
-    ? applicant.shortlisted
-    : (applicant.status === "shortlisted");
+    const isShortlisted = typeof applicant.shortlisted === "boolean"
+        ? applicant.shortlisted
+        : (applicant.status === "shortlisted");
 
-  return {
-    success: true,
-    recipient: applicant.email,
-    shortlisted: isShortlisted,
-    messageId: info?.messageId || "sent"
-  };
+    return {
+        success: true,
+        recipient: applicant.email,
+        shortlisted: isShortlisted,
+        messageId: info?.messageId || "sent"
+    };
 }
 
 module.exports = {
-  prepareEmail,
-  sendShortlistEmail
+    prepareEmail,
+    sendShortlistEmail
 };
