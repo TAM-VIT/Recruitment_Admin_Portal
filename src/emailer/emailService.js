@@ -180,7 +180,7 @@ Recruitment Team`;
 
             <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.6;color:#CBD5E1;margin-bottom:24px;">
                 Best regards,<br>
-                <strong style="color:#F1F5F9;font-weight:600;">The Recruitment Desk</strong><br>
+                <strong style="color:#F1F5F9;font-weight:600;">The Team TAM</strong><br>
                 <span style="font-size:12px;color:#38BDF8;">The AI &amp; ML Club · VIT Vellore</span>
             </div>
 
@@ -196,7 +196,7 @@ Recruitment Team`;
                         The AI &amp; ML Club · VIT Vellore
                     </td>
                     <td align="right" bgcolor="#0B1220" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;color:#94A3B8;background-color:#0B1220;">
-                        Recruitment Desk
+                        Team TAM
                     </td>
                 </tr>
             </table>
@@ -356,7 +356,7 @@ Recruitment Team`;
 
             <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.6;color:#CBD5E1;margin-bottom:24px;">
                 Warm regards,<br>
-                <strong style="color:#F1F5F9;font-weight:600;">The Recruitment Desk</strong><br>
+                <strong style="color:#F1F5F9;font-weight:600;">The Team TAM</strong><br>
                 <span style="font-size:12px;color:#38BDF8;">The AI &amp; ML Club · VIT Vellore</span>
             </div>
 
@@ -372,7 +372,7 @@ Recruitment Team`;
                         The AI &amp; ML Club · VIT Vellore
                     </td>
                     <td align="right" bgcolor="#0B1220" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;color:#94A3B8;background-color:#0B1220;">
-                        Recruitment Desk
+                        Team TAM
                     </td>
                 </tr>
             </table>
