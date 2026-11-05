@@ -45,6 +45,13 @@ const DEMO_USERS = [
     domain: "MANAGEMENT" as DomainEnum,
   },
   {
+    key: "EDITORIAL",
+    label: DOMAIN_LABELS.EDITORIAL,
+    email: "editorial.head@tam.vit.ac.in",
+    role: "DOMAIN_HEAD",
+    domain: "EDITORIAL" as DomainEnum,
+  },
+  {
     key: "TECHNICAL",
     label: DOMAIN_LABELS.TECHNICAL,
     email: "tech.head@tam.vit.ac.in",

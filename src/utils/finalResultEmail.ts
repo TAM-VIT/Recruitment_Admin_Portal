@@ -10,6 +10,7 @@ const DOMAIN_LABELS: Record<DomainType, string> = {
   DESIGN: 'Design',
   MARKETING: 'Marketing',
   R_AND_D: 'R&D',
+  EDITORIAL: 'Editorial',
 };
 
 // names come from students' own sign-up forms, so escape them before putting them in HTML
