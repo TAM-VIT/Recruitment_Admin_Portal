@@ -6,7 +6,7 @@
  * HOW TO RUN:
  *   1. Populate the `candidates` array below with your test recipient email(s).
  *   2. Ensure your `.env` contains valid credentials:
- *        EMAIL_USER=your_email@gmail.com
+ *        EMAIL_USER=jhon.doe2023@gmail.com
  *        EMAIL_APP_PASSWORD=your_16_char_app_password
  *   3. Run the script from the project root:
  *        node src/emailer/batchTest.js
@@ -28,12 +28,12 @@
 const candidates = [
   {
     name: "Test Candidate 1",
-    email: "", // Fill in manually (e.g., "candidate1@gmail.com")
+    email: "", // Fill in manually (e.g., "jhon.doe2023@gmail.com")
     shortlisted: true // Sends Interview Shortlist template
   },
   {
     name: "Test Candidate 2",
-    email: "", // Fill in manually (e.g., "candidate2@gmail.com")
+    email: "", // Fill in manually (e.g., "jhon.doe2023@gmail.com")
     shortlisted: false // Sends Polite Rejection template
   }
 ];
@@ -49,7 +49,7 @@ require("dotenv").config();
 require("dotenv").config({ path: path.resolve(__dirname, "../../.env") });
 
 const readline = require("readline");
-const { sendShortlistEmail } = require("./index");
+const { sendShortlistEmail, validateApplicant } = require("./index");
 
 /**
  * Helper delay function.
@@ -135,6 +135,20 @@ async function runBatchTest() {
       skippedEntries.push({
         name: candidateName,
         email: "(empty)",
+        template: candidate?.shortlisted ? "shortlisted" : "rejected",
+        reason
+      });
+      continue;
+    }
+
+    // Validate candidate payload against module schema
+    const validation = validateApplicant(candidate);
+    if (!validation.isValid) {
+      const reason = validation.error;
+      console.log(`[SKIP] ${candidateName}: ${reason}`);
+      skippedEntries.push({
+        name: candidateName,
+        email: rawEmail.trim(),
         template: candidate?.shortlisted ? "shortlisted" : "rejected",
         reason
       });

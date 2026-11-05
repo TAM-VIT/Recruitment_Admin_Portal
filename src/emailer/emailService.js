@@ -1,5 +1,9 @@
+const path = require("path");
+const fs = require("fs");
 const { sendEmail } = require("./mailer");
 const { validateApplicant } = require("./validation");
+
+const LOGO_PATH = path.resolve(__dirname, "assets", "LOGO.png");
 
 /**
  * Prepares the email content (subject, text body, and HTML body)
@@ -49,43 +53,163 @@ Recruitment Team`;
 
         html = `
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>${subject}</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark light">
+    <meta name="supported-color-schemes" content="dark light">
+    <title>${subject}</title>
+    <style>
+        :root {
+            color-scheme: dark light;
+            supported-color-schemes: dark light;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+            background-color: #0B1220;
+        }
+        table, td {
+            mso-table-lspace: 0pt;
+            mso-table-rspace: 0pt;
+        }
+        img {
+            -ms-interpolation-mode: bicubic;
+            border: 0;
+            outline: none;
+            text-decoration: none;
+        }
+        @media only screen and (max-width: 620px) {
+            .wrapper-table {
+                padding: 12px 6px !important;
+            }
+            .main-container {
+                width: 100% !important;
+                max-width: 100% !important;
+                border-radius: 6px !important;
+            }
+            .body-padding {
+                padding-left: 18px !important;
+                padding-right: 18px !important;
+            }
+            .headline-text {
+                font-size: 21px !important;
+                line-height: 1.3 !important;
+            }
+            .callout-box {
+                padding: 14px 16px !important;
+            }
+        }
+    </style>
 </head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333333; margin: 0; padding: 20px; background-color: #f7fafc;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
-    <tr>
-      <td style="background-color: #2b6cb0; padding: 24px; text-align: center; color: #ffffff;">
-        <h1 style="margin: 0; font-size: 22px;">Recruitment Portal</h1>
-      </td>
-    </tr>
-    <tr>
-      <td style="padding: 28px 24px;">
-        <h2 style="color: #2b6cb0; margin-top: 0;">Congratulations, ${candidateName}!</h2>
-        <p>We are delighted to inform you that you have been <strong>shortlisted</strong> for the next round of our recruitment process.</p>
-        <p>Our review team was thoroughly impressed by your profile, answers, and technical enthusiasm.</p>
-        
-        <div style="background-color: #ebf8ff; border-left: 4px solid #3182ce; padding: 16px; margin: 24px 0; border-radius: 4px;">
-          <p style="margin: 0; font-weight: bold; color: #2b6cb0;">Next Step: Select Your Interview Slot</p>
-          <p style="margin: 8px 0 0 0; color: #2d3748;">Please log in to your candidate portal as soon as possible to reserve your preferred 10-minute interview block with our interviewers.</p>
-        </div>
 
-        <p>If you experience any difficulties or have questions, please reach out to our team by replying to this email.</p>
-        
-        <p style="margin-top: 32px; margin-bottom: 4px;">Best regards,</p>
-        <p style="margin: 0; font-weight: bold; color: #4a5568;">The Recruitment Team</p>
-      </td>
-    </tr>
+<body bgcolor="#0B1220" style="margin:0;padding:0;background-color:#0B1220;color:#F1F5F9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0B1220" class="wrapper-table" style="background-color:#0B1220;padding:28px 12px;">
+<tr><td align="center" bgcolor="#0B1220" style="background-color:#0B1220;">
+
+<!-- Main Centered Container -->
+<table width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#111C32" class="main-container" style="width:100%;max-width:600px;background-color:#111C32;border:1px solid #263B5A;border-top:3px solid #2563EB;border-radius:8px;overflow:hidden;">
+
+    <!-- Header Section (100–150px vertical height with prominent logo) -->
     <tr>
-      <td style="background-color: #edf2f7; padding: 16px; text-align: center; font-size: 12px; color: #718096;">
-        This is an official communication from the Recruitment Team.
-      </td>
+        <td align="center" bgcolor="#111C32" style="padding:26px 20px 20px;background-color:#111C32;border-bottom:1px solid #263B5A;">
+            <table cellpadding="0" cellspacing="0" border="0" align="center" bgcolor="#111C32" style="background-color:#111C32;margin:0 auto;">
+                <tr>
+                    <td align="center" bgcolor="#111C32" style="background-color:#111C32;">
+                        <img src="cid:tam-club-logo" alt="The AI &amp; ML Club Logo" width="124" height="120" style="display:block;margin:0 auto 10px;border:0;outline:none;text-decoration:none;width:124px;max-width:124px;height:auto;" />
+                        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-style:italic;color:#94A3B8;letter-spacing:0.3px;line-height:1.4;">
+                            It's a place for everyone to learn
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </td>
     </tr>
-  </table>
+
+    <!-- Body Content Area (Left-aligned, natural hierarchy) -->
+    <tr>
+        <td bgcolor="#111C32" class="body-padding" style="padding:28px 32px 12px;background-color:#111C32;text-align:left;">
+
+            <!-- Single Prominent Natural Heading -->
+            <div class="headline-text" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:24px;font-weight:700;letter-spacing:-0.3px;line-height:1.3;color:#F1F5F9;margin:0 0 8px;text-align:left;">
+                YOU'VE MADE THE LIST!
+            </div>
+
+            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;color:#94A3B8;line-height:1.5;margin-bottom:22px;text-align:left;">
+                Your journey with TAM moves to its next chapter.
+            </div>
+
+            <!-- Greeting and Congratulatory Message -->
+            <p style="margin:0 0 14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.65;color:#F1F5F9;">
+                Dear <strong style="color:#F1F5F9;font-weight:600;">${candidateName}</strong>,
+            </p>
+
+            <p style="margin:0 0 14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.65;color:#CBD5E1;">
+                We are delighted to inform you that you have been <strong style="color:#38BDF8;font-weight:600;">shortlisted</strong> for the next stage of the TAM recruitment process!
+            </p>
+
+            <p style="margin:0 0 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.65;color:#CBD5E1;">
+                Your application stood out to our review team, and we're excited to see what you bring to the table. This is just the beginning.
+            </p>
+
+            <!-- Clearly Identifiable Next-Steps Section -->
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0B1220" class="callout-box" style="border:1px solid #263B5A;border-left:3px solid #2563EB;border-radius:6px;background-color:#0B1220;margin:0 0 22px;">
+                <tr>
+                    <td bgcolor="#0B1220" style="padding:16px 20px;background-color:#0B1220;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+                        <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#38BDF8;text-transform:uppercase;margin-bottom:4px;">
+                            ✦ WHAT HAPPENS NEXT?
+                        </div>
+                        <div style="font-size:16px;font-weight:600;color:#F1F5F9;margin-bottom:6px;">
+                            Select your interview slot
+                        </div>
+                        <div style="font-size:13px;line-height:1.6;color:#94A3B8;">
+                            Log in to your candidate recruitment portal to choose your preferred interview slot with our domain leads.
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
+            <!-- Closing and Support Info -->
+            <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;line-height:1.6;margin:0 0 18px;color:#94A3B8;">
+                If you have any questions or require accommodations, feel free to contact us on WhatsApp.
+            </p>
+
+            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.6;color:#CBD5E1;margin-bottom:24px;">
+                Best regards,<br>
+                <strong style="color:#F1F5F9;font-weight:600;">The Team TAM</strong><br>
+                <span style="font-size:12px;color:#38BDF8;">The AI &amp; ML Club · VIT Vellore</span>
+            </div>
+
+        </td>
+    </tr>
+
+    <!-- Clean, Understated Footer -->
+    <tr>
+        <td bgcolor="#0B1220" class="body-padding" style="padding:12px 32px;background-color:#0B1220;border-top:1px solid #263B5A;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0B1220" style="background-color:#0B1220;">
+                <tr>
+                    <td align="left" bgcolor="#0B1220" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;color:#94A3B8;background-color:#0B1220;">
+                        The AI &amp; ML Club · VIT Vellore
+                    </td>
+                    <td align="right" bgcolor="#0B1220" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;color:#94A3B8;background-color:#0B1220;">
+                        Team TAM
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+
+</table>
+</td></tr>
+</table>
+
 </body>
-</html>`.trim();
+</html>
+`.trim();
     } else {
         subject = "Recruitment Application Update";
         message = `Dear ${candidateName},
@@ -103,40 +227,176 @@ Recruitment Team`;
 
         html = `
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>${subject}</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark light">
+    <meta name="supported-color-schemes" content="dark light">
+    <title>${subject}</title>
+    <style>
+        :root {
+            color-scheme: dark light;
+            supported-color-schemes: dark light;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+            background-color: #0B1220;
+        }
+        table, td {
+            mso-table-lspace: 0pt;
+            mso-table-rspace: 0pt;
+        }
+        img {
+            -ms-interpolation-mode: bicubic;
+            border: 0;
+            outline: none;
+            text-decoration: none;
+        }
+        @media only screen and (max-width: 620px) {
+            .wrapper-table {
+                padding: 12px 6px !important;
+            }
+            .main-container {
+                width: 100% !important;
+                max-width: 100% !important;
+                border-radius: 6px !important;
+            }
+            .body-padding {
+                padding-left: 18px !important;
+                padding-right: 18px !important;
+            }
+            .headline-text {
+                font-size: 21px !important;
+                line-height: 1.3 !important;
+            }
+            .callout-box {
+                padding: 14px 16px !important;
+            }
+        }
+    </style>
 </head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333333; margin: 0; padding: 20px; background-color: #f7fafc;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+
+<body bgcolor="#0B1220" style="margin:0;padding:0;background-color:#0B1220;color:#F1F5F9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0B1220" class="wrapper-table" style="background-color:#0B1220;padding:28px 12px;">
+<tr><td align="center" bgcolor="#0B1220" style="background-color:#0B1220;">
+
+<!-- Main Centered Container -->
+<table width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#111C32" class="main-container" style="width:100%;max-width:600px;background-color:#111C32;border:1px solid #263B5A;border-top:3px solid #2563EB;border-radius:8px;overflow:hidden;">
+
+    <!-- Header Section (100–150px vertical height with prominent logo) -->
     <tr>
-      <td style="background-color: #4a5568; padding: 24px; text-align: center; color: #ffffff;">
-        <h1 style="margin: 0; font-size: 22px;">Recruitment Portal</h1>
-      </td>
+        <td align="center" bgcolor="#111C32" style="padding:26px 20px 20px;background-color:#111C32;border-bottom:1px solid #263B5A;">
+            <table cellpadding="0" cellspacing="0" border="0" align="center" bgcolor="#111C32" style="background-color:#111C32;margin:0 auto;">
+                <tr>
+                    <td align="center" bgcolor="#111C32" style="background-color:#111C32;">
+                        <img src="cid:tam-club-logo" alt="The AI &amp; ML Club Logo" width="124" height="120" style="display:block;margin:0 auto 10px;border:0;outline:none;text-decoration:none;width:124px;max-width:124px;height:auto;" />
+                        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-style:italic;color:#94A3B8;letter-spacing:0.3px;line-height:1.4;">
+                            It's a place for everyone to learn
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </td>
     </tr>
+
+    <!-- Body Content Area (Left-aligned, natural hierarchy) -->
     <tr>
-      <td style="padding: 28px 24px;">
-        <h2 style="color: #4a5568; margin-top: 0;">Application Update</h2>
-        <p>Dear ${candidateName},</p>
-        <p>Thank you for taking the time and effort to apply for our recruitment drive.</p>
-        <p>We received an exceptionally high volume of applications this cycle. After careful consideration by our evaluation panel, we regret to inform you that we are unable to advance your application to the interview stage at this time.</p>
-        <p>This was a very competitive process, and this outcome is not a reflection of your skills or future potential. We sincerely value your enthusiasm, and you remain an integral part of our community. We strongly encourage you to reapply in future recruitment cycles.</p>
-        
-        <p>We wish you continued success in all your academic and career pursuits.</p>
-        
-        <p style="margin-top: 32px; margin-bottom: 4px;">Warm regards,</p>
-        <p style="margin: 0; font-weight: bold; color: #4a5568;">The Recruitment Team</p>
-      </td>
+        <td bgcolor="#111C32" class="body-padding" style="padding:28px 32px 12px;background-color:#111C32;text-align:left;">
+
+            <!-- Single Prominent Respectful Heading -->
+            <div class="headline-text" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:22px;font-weight:700;letter-spacing:-0.3px;line-height:1.3;color:#F1F5F9;margin:0 0 8px;text-align:left;">
+                EVERY STORY HAS ITS CHAPTER.
+            </div>
+
+            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;color:#94A3B8;line-height:1.5;margin-bottom:22px;text-align:left;">
+                An update regarding your TAM recruitment application.
+            </div>
+
+            <!-- Greeting and Rejection Message -->
+            <p style="margin:0 0 14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.65;color:#F1F5F9;">
+                Dear <strong style="color:#F1F5F9;font-weight:600;">${candidateName}</strong>,
+            </p>
+
+            <p style="margin:0 0 14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.65;color:#CBD5E1;">
+                Thank you for your interest in the TAM recruitment drive and for taking the time to share your application with us.
+            </p>
+
+            <p style="margin:0 0 14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.65;color:#CBD5E1;">
+                We received an exceptionally large number of applications this season. After careful consideration, we regret to inform you that we will not be moving forward with your application for this recruitment cycle.
+            </p>
+
+            <p style="margin:0 0 14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.65;color:#CBD5E1;">
+                This was a highly competitive process, and this outcome does not diminish your abilities, efforts, or potential. We genuinely appreciate the enthusiasm you showed in being a part of TAM.
+            </p>
+
+            <p style="margin:0 0 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.65;color:#CBD5E1;">
+                We hope this is not the end of your story with us. We warmly encourage you to apply again in future recruitment cycles.
+            </p>
+
+            <!-- Restrained Presentation of Encouraging Quote -->
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0B1220" class="callout-box" style="border:1px solid #263B5A;border-left:3px solid #38BDF8;border-radius:6px;background-color:#0B1220;margin:0 0 22px;">
+                <tr>
+                    <td bgcolor="#0B1220" style="padding:16px 20px;background-color:#0B1220;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+                        <div style="font-size:14px;font-style:italic;line-height:1.6;color:#F1F5F9;">
+                            "Every opportunity is a chance to learn, grow, and begin again."
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
+            <!-- Closing and Signature -->
+            <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;line-height:1.6;margin:0 0 18px;color:#94A3B8;">
+                We wish you every success in your academic and professional journey. Thank you once again for considering TAM.
+            </p>
+
+            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.6;color:#CBD5E1;margin-bottom:24px;">
+                Warm regards,<br>
+                <strong style="color:#F1F5F9;font-weight:600;">The Team TAM</strong><br>
+                <span style="font-size:12px;color:#38BDF8;">The AI &amp; ML Club · VIT Vellore</span>
+            </div>
+
+        </td>
     </tr>
+
+    <!-- Clean, Understated Footer -->
     <tr>
-      <td style="background-color: #edf2f7; padding: 16px; text-align: center; font-size: 12px; color: #718096;">
-        This is an official communication from the Recruitment Team.
-      </td>
+        <td bgcolor="#0B1220" class="body-padding" style="padding:12px 32px;background-color:#0B1220;border-top:1px solid #263B5A;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0B1220" style="background-color:#0B1220;">
+                <tr>
+                    <td align="left" bgcolor="#0B1220" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;color:#94A3B8;background-color:#0B1220;">
+                        The AI &amp; ML Club · VIT Vellore
+                    </td>
+                    <td align="right" bgcolor="#0B1220" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;color:#94A3B8;background-color:#0B1220;">
+                        Team TAM
+                    </td>
+                </tr>
+            </table>
+        </td>
     </tr>
-  </table>
+
+</table>
+</td></tr>
+</table>
+
 </body>
-</html>`.trim();
+</html>
+`.trim();
+    }
+
+    const attachments = [];
+    if (fs.existsSync(LOGO_PATH)) {
+        attachments.push({
+            filename: "LOGO.png",
+            path: LOGO_PATH,
+            cid: "tam-club-logo",
+            contentDisposition: "inline",
+            contentType: "image/png"
+        });
     }
 
     return {
@@ -144,7 +404,8 @@ Recruitment Team`;
         subject,
         message,
         html,
-        shortlisted: isShortlisted
+        shortlisted: isShortlisted,
+        attachments
     };
 }
 

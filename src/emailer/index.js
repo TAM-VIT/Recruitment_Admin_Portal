@@ -9,14 +9,14 @@
  * import { sendShortlistEmail } from './emailer';
  *
  * await sendShortlistEmail({
- *   name: 'Rahul Sharma',
- *   email: 'rahul@example.com',
+ *   name: 'Jhon Doe',
+ *   email: 'jhon.doe2023@example.com',
  *   shortlisted: true // sends interview shortlist email
  * });
  *
  * await sendShortlistEmail({
- *   name: 'Priya Patel',
- *   email: 'priya@example.com',
+ *   name: 'Jane Doe',
+ *   email: 'jhon.doe2023@example.com',
  *   shortlisted: false // sends polite rejection email
  * });
  * ```

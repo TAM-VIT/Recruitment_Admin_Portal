@@ -75,6 +75,10 @@ async function sendEmail(email, customTransporter = null) {
         mailOptions.html = email.html;
     }
 
+    if (email.attachments && Array.isArray(email.attachments) && email.attachments.length > 0) {
+        mailOptions.attachments = email.attachments;
+    }
+
     return transporterToUse.sendMail(mailOptions);
 }
 

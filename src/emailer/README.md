@@ -130,11 +130,22 @@ export async function notifyShortlistedCandidatesByDomain(domain: string) {
 | Step | File | Role & Behavior |
 | :--- | :--- | :--- |
 | **1. Entry Point** | [`index.js`](./index.js) / [`index.d.ts`](./index.d.ts) | Public API facade. Re-exports `sendShortlistEmail`, `prepareEmail`, `validateApplicant`, and mailer utilities. Provides TypeScript types. |
-| **2. Validation** | [`validation.js`](./validation.js) | Validates input structure using `validateApplicant()`. Requires non-empty string `name`, RFC email regex format, and strict boolean `shortlisted`. |
+| **2. Validation** | [`validation.js`](./validation.js) | Validates input structure using `validateApplicant()`. Requires non-empty string `name`, RFC email regex format, and strict boolean `shortlisted` (with legacy `status` fallback). |
 | **3. Templating** | [`emailService.js`](./emailService.js) | Constructs email content using `prepareEmail()`. Builds transactional subject lines, plain text fallbacks, and mobile-friendly HTML tables. |
 | **4. Transport** | [`mailer.js`](./mailer.js) | Manages the Nodemailer Gmail transporter, loads environment credentials from `.env`, injects deliverability headers (`Reply-To`, `X-Priority: 3`), and dispatches SMTP calls. |
 | **5. Testing** | [`emailer.test.js`](./emailer.test.js) | Automated test suite (16 unit & integration tests) covering validation, template rendering, and mocked SMTP delivery. |
 | **6. Manual Tool** | [`batchTest.js`](./batchTest.js) | Interactive terminal CLI for real deliverability tests, recipient warm-up, and spam troubleshooting. |
+
+### Payload Schema & Validation (`validation.js`)
+
+All inputs to `sendShortlistEmail(applicant)` and `prepareEmail(applicant)` are validated by `validateApplicant()` before processing:
+
+| Field | Type | Required | Validation Rules | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `name` | `string` | **Yes** | Non-empty string (trimmed) | Candidate's full name. |
+| `email` | `string` | **Yes** | RFC regex format (`^[^\s@]+@[^\s@]+\.[^\s@]+$`) | Destination email address. |
+| `shortlisted` | `boolean` | **Yes** | Strict boolean (`true` or `false`) | `true` sends Interview Invitation; `false` sends Polite Rejection. |
+| `status` | `string` | Optional | `"shortlisted"` or `"not shortlisted"` | Legacy backwards-compatibility string if `shortlisted` boolean is omitted. |
 
 ---
 
@@ -148,6 +159,7 @@ Before deploying or triggering automated emails to hundreds of real student appl
 4. Inspect visual layout across mobile and desktop mail clients without touching the database.
 
 ### Safety Features
+- **Schema Validation**: Validates candidate objects against `validateApplicant` (skipping entries with invalid email regex, empty names, or missing shortlisted flags with clear terminal warnings).
 - **Empty Email Detection**: Automatically skips entries with missing or blank emails.
 - **Duplicate Prevention**: Normalizes email addresses (trimmed & lowercased) and skips duplicate recipients within the same execution.
 - **Confirmation Gate**: Halts execution and requires explicit terminal input (`yes` or `y`) before dispatching any real emails.
@@ -161,12 +173,12 @@ Before deploying or triggering automated emails to hundreds of real student appl
    const candidates = [
      {
        name: "Test Candidate 1",
-       email: "your_email1@gmail.com",
+       email: "jhon.doe2023@gmail.com",
        shortlisted: true  // Receives Interview Invitation
      },
      {
        name: "Test Candidate 2",
-       email: "your_email2@gmail.com",
+       email: "jhon.doe2023@gmail.com",
        shortlisted: false // Receives Polite Rejection
      }
    ];
@@ -189,16 +201,16 @@ Configuration is loaded from the root `.env` file:
 
 ```env
 # Gmail account used for SMTP authentication
-EMAIL_USER=your_club_email@gmail.com
+EMAIL_USER=jhon.doe2023@gmail.com
 
 # 16-character Google App Password (generated from Google Account Security)
 EMAIL_APP_PASSWORD=your_16_char_app_password
 
 # Display name and From header (the email address MUST match EMAIL_USER)
-EMAIL_FROM="Club Recruitment Team <your_club_email@gmail.com>"
+EMAIL_FROM="Club Recruitment Team <jhon.doe2023@gmail.com>"
 
 # Optional: Dedicated reply-to inbox for applicant queries
-EMAIL_REPLY_TO=your_club_email@gmail.com
+EMAIL_REPLY_TO=jhon.doe2023@gmail.com
 ```
 
 ---
