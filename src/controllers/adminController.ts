@@ -9,6 +9,13 @@ import { sendFinalResultEmail } from '../utils/finalResultEmail';
 
 const mailerModule = require('../emailer/mailer');
 const sendEmail = mailerModule.sendEmail;
+// aarkie's designed shortlist / rejection emails (HTML + club logo)
+const { prepareEmail: prepareDesignedEmail } = require('../emailer/emailService');
+
+// names come from students' own sign-up forms, so escape them before they go into HTML
+const escapeHtml = (s: string) =>
+  s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+const sameText = (a: string, b: string) => a.replace(/\r\n/g, '\n').trim() === b.replace(/\r\n/g, '\n').trim();
 
 export const DEFAULT_TEMPLATES = {
   SHORTLIST: {
@@ -894,6 +901,8 @@ export const sendRound1Emails = async (req: CustomRequest, res: Response) => {
     const targetStage = decision === 'SHORTLIST' ? Stage.SHORTLISTED : Stage.REJECTED;
     const targetDecision = decision === 'SHORTLIST' ? Round1Decision.SHORTLIST : Round1Decision.REJECT;
 
+    // If the admin kept the default text, send the designed HTML version; if they edited it, send their text
+    const useDesign = sameText(body, DEFAULT_TEMPLATES[decision as 'SHORTLIST' | 'REJECT'].body);
     const isDryRun = process.env.EMAIL_DRY_RUN === 'true' || process.env.EMAIL_DRY_RUN === '1';
     const siteUrl = process.env.CANDIDATE_SITE_URL || 'https://tam-times.vercel.app';
     const divisionLabel = DIVISION_LABELS[targetDomain] || targetDomain;
@@ -981,10 +990,19 @@ export const sendRound1Emails = async (req: CustomRequest, res: Response) => {
           if (i > 0) {
             await new Promise((resolve) => setTimeout(resolve, 1200));
           }
+          const designed = useDesign
+            ? prepareDesignedEmail({
+                name: escapeHtml(app.user.name || 'Candidate'),
+                email: app.user.email,
+                shortlisted: decision === 'SHORTLIST',
+                portalUrl: siteUrl,
+              })
+            : null;
           await sendEmail({
             to: app.user.email,
             subject: renderedSubject,
             message: renderedBody,
+            ...(designed ? { html: designed.html, attachments: designed.attachments } : {}),
           });
 
           await prisma.$transaction(async (tx) => {

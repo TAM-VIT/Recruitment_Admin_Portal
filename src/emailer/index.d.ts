@@ -7,6 +7,8 @@ export interface ApplicantNotificationPayload {
     email: string;
     shortlisted: boolean;
     status?: string;
+    /** Student site address; adds a link to the shortlist email */
+    portalUrl?: string;
 }
 
 export interface EmailData {
