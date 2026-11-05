@@ -119,6 +119,12 @@ export interface Round2SendResult {
   message: string;
 }
 
+export interface RecruitmentSettings {
+  isOpen: boolean | null;
+  formDeadline: string | null;
+  updatedAt: string | null;
+}
+
 export interface AuthResponse {
   success: boolean;
   token: string;

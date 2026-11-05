@@ -455,6 +455,15 @@ function TeamManagementContent() {
                             Waiting for Claim
                           </span>
                         )}
+                        {!m.claimed && m.setupCode && (
+                          // the one-time code they need for "Create First-Time Password"; send it to them privately
+                          <div style={{ marginTop: "0.35rem", fontFamily: "var(--font-label)", fontSize: "0.72rem", color: "var(--ink-soft)" }}>
+                            Setup code:{" "}
+                            <span style={{ fontFamily: "monospace", fontWeight: 700, letterSpacing: "0.12em", color: "var(--ink)" }}>
+                              {m.setupCode}
+                            </span>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );

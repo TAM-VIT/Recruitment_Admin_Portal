@@ -23,6 +23,8 @@ import {
   sendRound1Emails,
   getRound2Summary,
   sendRound2Emails,
+  getRecruitmentSettings,
+  updateRecruitmentSettings,
 } from '../controllers/adminController';
 import { authorizeRole, limitLoginAttempts, verifyToken } from '../middleware/authMiddleware';
 
@@ -64,6 +66,10 @@ router.post('/round1/send', authorizeRole(['DOMAIN_HEAD', 'ROOT_ADMIN']), sendRo
 // Round 2 (after the interview): Selected / Not selected lists and their emails
 router.get('/round2/summary', authorizeRole(['DOMAIN_HEAD', 'ROOT_ADMIN']), getRound2Summary);
 router.post('/round2/send', authorizeRole(['DOMAIN_HEAD', 'ROOT_ADMIN']), sendRound2Emails);
+
+// Recruitment settings (open/closed, form deadline): everyone can view, only the Root Admin can change
+router.get('/settings', authorizeRole(['DOMAIN_HEAD', 'ROOT_ADMIN']), getRecruitmentSettings);
+router.put('/settings', authorizeRole(['ROOT_ADMIN']), updateRecruitmentSettings);
 
 // Only the Root Admin can view and assign Domain Heads
 router.get('/domain-heads', authorizeRole(['ROOT_ADMIN']), getDomainHeads);

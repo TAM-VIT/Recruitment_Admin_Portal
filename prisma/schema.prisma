@@ -13,7 +13,6 @@ enum DomainType {
   DESIGN
   MARKETING
   R_AND_D
-  EDITORIAL
 }
 
 enum Role {

@@ -19,6 +19,7 @@ import {
   Round2Group,
   Round2Summary,
   Round2SendResult,
+  RecruitmentSettings,
 } from "./types";
 
 const delay = (ms = 400) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -201,7 +202,7 @@ function getInitialStore(): MockStore {
   });
 
   // Exactly 50 applicants with realistic distribution across divisions
-  // Technical: 14, Design: 11, Management: 10, Marketing: 7, Editorial: 5, R&D: 3
+  // Technical: 14, Design: 11, Management: 10, Marketing: 7, R&D: 3
   interface CandidateSeed {
     name: string;
     domain: DomainEnum;
@@ -1047,5 +1048,24 @@ export const mockApi = {
       alreadySent: list.length - pending.length,
       message: pending.length ? `${pending.length} email(s) sent (mock).` : "Everyone in this list has already been emailed.",
     };
+  },
+  async getRecruitmentSettings(): Promise<RecruitmentSettings> {
+    await new Promise((r) => setTimeout(r, 200));
+    const store = loadStore() as any;
+    return store.settings || { isOpen: null, formDeadline: null, updatedAt: null };
+  },
+
+  async updateRecruitmentSettings(payload: { isOpen?: boolean; formDeadline?: string }): Promise<RecruitmentSettings> {
+    await new Promise((r) => setTimeout(r, 200));
+    const store = loadStore() as any;
+    const current = store.settings || { isOpen: true, formDeadline: null, updatedAt: null };
+    if (!current.formDeadline && !payload.formDeadline) throw new Error("Set a form deadline the first time.");
+    store.settings = {
+      isOpen: payload.isOpen ?? current.isOpen ?? true,
+      formDeadline: payload.formDeadline ? new Date(payload.formDeadline).toISOString() : current.formDeadline,
+      updatedAt: new Date().toISOString(),
+    };
+    saveStore(store);
+    return store.settings;
   },
 };

@@ -1289,3 +1289,57 @@ export const sendRound2Emails = async (req: CustomRequest, res: Response) => {
     return res.status(500).json({ success: false, message: error.message || 'Server error sending Round 2 emails' });
   }
 };
+
+// 21. Recruitment settings: whether applications are open, and the form deadline.
+// The student backend reads this record (RecruitmentConfig, key "main") to decide whether students can
+// sign up, edit answers and submit. Any admin can view it; only the root admin can change it.
+
+// GET /settings -> { isOpen, formDeadline } (both null if recruitment hasn't been set up yet)
+export const getRecruitmentSettings = async (_req: CustomRequest, res: Response) => {
+  try {
+    const config = await prisma.recruitmentConfig.findUnique({ where: { key: 'main' } });
+    return res.status(200).json({
+      success: true,
+      data: {
+        isOpen: config?.isOpen ?? null,
+        formDeadline: config?.formDeadline ?? null,
+        updatedAt: config?.updatedAt ?? null,
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message || 'Server error fetching settings' });
+  }
+};
+
+// PUT /settings  body: { isOpen?: boolean, formDeadline?: ISO date-time string }
+export const updateRecruitmentSettings = async (req: CustomRequest, res: Response) => {
+  try {
+    const { isOpen, formDeadline } = req.body ?? {};
+    if (isOpen !== undefined && typeof isOpen !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'isOpen must be true or false.' });
+    }
+    let deadline: Date | undefined;
+    if (formDeadline !== undefined) {
+      deadline = new Date(formDeadline);
+      if (isNaN(deadline.getTime())) return res.status(400).json({ success: false, message: 'Invalid deadline.' });
+    }
+
+    const existing = await prisma.recruitmentConfig.findUnique({ where: { key: 'main' } });
+    if (!existing && !deadline) {
+      return res.status(400).json({ success: false, message: 'Set a form deadline the first time.' });
+    }
+
+    const config = await prisma.recruitmentConfig.upsert({
+      where: { key: 'main' },
+      update: { ...(isOpen !== undefined ? { isOpen } : {}), ...(deadline ? { formDeadline: deadline } : {}) },
+      create: { key: 'main', isOpen: isOpen ?? true, formDeadline: deadline! },
+    });
+    return res.status(200).json({
+      success: true,
+      message: 'Recruitment settings saved.',
+      data: { isOpen: config.isOpen, formDeadline: config.formDeadline, updatedAt: config.updatedAt },
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message || 'Server error saving settings' });
+  }
+};

@@ -36,7 +36,6 @@ export const DIVISION_LABELS: Record<DomainType, string> = {
   DESIGN: "Design",
   MARKETING: "Marketing",
   R_AND_D: "Research & Development",
-  EDITORIAL: "Editorial",
 };
 
 // Root admins can act on any domain; heads only on their own

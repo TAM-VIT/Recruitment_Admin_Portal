@@ -14,6 +14,7 @@ import {
   Round2Group,
   Round2Summary,
   Round2SendResult,
+  RecruitmentSettings,
 } from "./types";
 
 const getAuthHeaders = (): HeadersInit => {
@@ -319,5 +320,19 @@ export const adminApi = {
       body: JSON.stringify({ domain, group }),
     });
     return handleResponse<Round2SendResult>(res);
+  },
+  // Recruitment settings: whether applications are open and the form deadline
+  async getRecruitmentSettings(): Promise<RecruitmentSettings> {
+    const res = await fetch("/api/admin/settings", { headers: getAuthHeaders() });
+    return handleResponse<RecruitmentSettings>(res);
+  },
+
+  async updateRecruitmentSettings(payload: { isOpen?: boolean; formDeadline?: string }): Promise<RecruitmentSettings> {
+    const res = await fetch("/api/admin/settings", {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+    return handleResponse<RecruitmentSettings>(res);
   },
 };
