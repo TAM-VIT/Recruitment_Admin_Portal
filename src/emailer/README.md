@@ -1,19 +1,25 @@
 # Recruitment Portal — Emailer Module (`src/emailer`)
 
-A robust, modular email notification service built with Node.js and Nodemailer for sending recruitment status updates (Interview Invitations & Polite Rejections) with full plain-text fallbacks and responsive HTML templates.
+A robust, modular email notification service built with Node.js and Nodemailer for sending recruitment status updates with full plain-text fallbacks and responsive HTML templates.
+
+The module supports two distinct recruitment stages:
+1. **Initial Application Shortlisting** (`sendShortlistEmail`): Invites candidates to interview or politely rejects initial applications.
+2. **Final Interview Outcomes** (`sendFinalShortlistEmail`): Communicates final selection confirmation or final post-interview application updates.
 
 ---
 
 ## Table of Contents
 1. [Module Architecture & File Flow](#module-architecture--file-flow)
 2. [How to Call This Module from the Database (Prisma)](#how-to-call-this-module-from-the-database-prisma)
-   - [Single Candidate Notification](#1-single-candidate-notification-e-g-admin-action)
-   - [Bulk Stage Notifications](#2-bulk-stage-notifications-batch-processing)
+   - [Initial Application Shortlisting](#1-initial-application-shortlisting)
+   - [Final Interview Outcomes (Selection & Rejection)](#2-final-interview-outcomes-selection--rejection)
+   - [Bulk Stage Notifications (Batch Processing)](#3-bulk-stage-notifications-batch-processing)
 3. [File-by-File Execution Flow](#file-by-file-execution-flow)
-4. [Deliverability Batch Tester (`batchTest.js`)](#deliverability-batch-tester-batchtestjs)
-   - [Purpose](#purpose)
-   - [Safety Features](#safety-features)
-   - [How to Use](#how-to-use)
+   - [Initial Shortlist Schema (`validation.js`)](#initial-shortlist-schema-validationjs)
+   - [Final Shortlist Schema (`validation.js`)](#final-shortlist-schema-validationjs)
+4. [Deliverability Batch Testers](#deliverability-batch-testers)
+   - [Initial Shortlist Tester (`batchTest.js`)](#initial-shortlist-tester-batchtestjs)
+   - [Final Shortlist Tester (`batchTestFinalShortlist.js`)](#final-shortlist-tester-batchtestfinalshortlistjs)
 5. [Environment Configuration](#environment-configuration)
 6. [Running Automated Tests](#running-automated-tests)
 
@@ -21,22 +27,26 @@ A robust, modular email notification service built with Node.js and Nodemailer f
 
 ## Module Architecture & File Flow
 
-When an external caller (such as an Express controller or background worker) calls `sendShortlistEmail()`, the execution flows deterministically through specialized layers:
+When an external caller (such as an Express controller or background worker) calls `sendShortlistEmail()` or `sendFinalShortlistEmail()`, execution flows deterministically through specialized layers:
 
 ```mermaid
 flowchart TD
     DB[(MongoDB / Prisma Database)] -->|Fetch Candidate| Controller[adminController.ts / Service]
-    Controller -->|sendShortlistEmail(payload)| Index[index.js / index.d.ts<br/>Public API Facade]
     
-    Index -->|1. Validate Data| Validation[validation.js<br/>validateApplicant()]
-    Validation -->|Throws on Invalid| ErrorHandler[Error Handling]
-    
-    Validation -->|2. Valid Payload| Service[emailService.js<br/>prepareEmail()]
-    Service -->|Build Template| Template[Generate Subject, Text & HTML<br/>• Shortlisted: Interview Slot CTA<br/>• Rejected: Polite Rejection]
-    
-    Service -->|3. Dispatch| Mailer[mailer.js<br/>sendEmail()]
-    Mailer -->|Read .env & Attach Headers| Transporter[Nodemailer Gmail Transporter]
-    Transporter -->|4. SMTP Delivery| Gmail[Google SMTP Servers]
+    Controller -->|Initial Round: sendShortlistEmail(payload)| Index[index.js / index.d.ts<br/>Public API Facade]
+    Controller -->|Final Round: sendFinalShortlistEmail(payload)| Index
+
+    Index -->|Initial Stage| Service[emailService.js<br/>prepareEmail()]
+    Index -->|Final Stage| FinalService[FinalShortlistEmailer.js<br/>prepareFinalShortlistEmail()]
+
+    Service -->|Validate| Validation[validation.js<br/>validateApplicant()]
+    FinalService -->|Validate| FinalValidation[validation.js<br/>validateFinalShortlistDetails()]
+
+    Service -->|Dispatch| Mailer[mailer.js<br/>sendEmail()]
+    FinalService -->|Dispatch| Mailer
+
+    Mailer -->|Read .env & Headers| Transporter[Nodemailer Transporter]
+    Transporter -->|SMTP Delivery| Gmail[Google SMTP Servers]
     Gmail -->|Message ID| Caller[Returns { success, recipient, messageId }]
 ```
 
@@ -46,78 +56,86 @@ flowchart TD
 
 The module is exposed with full TypeScript type definitions via `src/emailer/index.d.ts` and CommonJS exports via `src/emailer/index.js`.
 
-### 1. Single Candidate Notification (e.g., Admin Action)
+### 1. Initial Application Shortlisting
 
-When an admin updates a candidate's status or advances their stage in `src/controllers/adminController.ts`:
+When updating initial review status:
 
 ```typescript
-import { PrismaClient } from '@prisma/client';
 import { sendShortlistEmail } from '../emailer';
 
-const prisma = new PrismaClient();
+// Interview Shortlist Email
+await sendShortlistEmail({
+  name: "Rahul Sharma",
+  email: "rahul@vitstudent.ac.in",
+  shortlisted: true
+});
 
-export async function notifyCandidate(applicationId: string, isShortlisted: boolean) {
-  // 1. Fetch applicant details from the database
-  const application = await prisma.application.findUnique({
-    where: { id: applicationId },
-    include: { user: true }
-  });
-
-  if (!application || !application.user) {
-    throw new Error('Application or candidate user record not found');
-  }
-
-  // 2. Call the emailer module
-  const result = await sendShortlistEmail({
-    name: application.user.name,
-    email: application.user.email,
-    shortlisted: isShortlisted
-  });
-
-  console.log(`Email delivered to ${result.recipient} (Message ID: ${result.messageId})`);
-  return result;
-}
+// Initial Application Polite Rejection
+await sendShortlistEmail({
+  name: "Priya Patel",
+  email: "priya@vitstudent.ac.in",
+  shortlisted: false
+});
 ```
 
-### 2. Bulk Stage Notifications (Batch Processing)
+### 2. Final Interview Outcomes (Selection & Rejection)
+
+When releasing final outcomes after domain interviews, call `sendFinalShortlistEmail()` with `{ name, email, isShortlisted, groupLink? }`:
+
+- `isShortlisted: true` sends **`TAM Recruitment – Final Selection Confirmation`** and includes the WhatsApp group link section (when `groupLink` is provided).
+- `isShortlisted: false` sends **`TAM Recruitment – Final Application Update`** (rejection emails ignore `groupLink`).
+
+> **Note on `groupLink`**: The `groupLink` parameter is **optional** at the validation layer. If omitted or empty for a shortlisted candidate, the email is sent without a broken or empty link. Rejection emails never include the WhatsApp group link under any circumstance.
+
+```typescript
+import { sendFinalShortlistEmail } from '../emailer';
+
+// Final Selection Confirmation (with WhatsApp group link)
+const selectionResult = await sendFinalShortlistEmail({
+  name: "Rahul Sharma",
+  email: "rahul@vitstudent.ac.in",
+  isShortlisted: true,
+  groupLink: "https://chat.whatsapp.com/example"
+});
+console.log(`Delivered confirmation to ${selectionResult.recipient} (ID: ${selectionResult.messageId})`);
+
+// Final Application Rejection Update (groupLink is ignored)
+const rejectionResult = await sendFinalShortlistEmail({
+  name: "Amit Kumar",
+  email: "amit@vitstudent.ac.in",
+  isShortlisted: false
+});
+console.log(`Delivered update to ${rejectionResult.recipient} (ID: ${rejectionResult.messageId})`);
+```
+
+### 3. Bulk Stage Notifications (Batch Processing)
 
 When triggering notifications for multiple candidates from a database query, process them with small intervals to respect SMTP rate limits:
 
 ```typescript
 import { PrismaClient } from '@prisma/client';
-import { sendShortlistEmail } from '../emailer';
+import { sendFinalShortlistEmail } from '../emailer';
 
 const prisma = new PrismaClient();
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export async function notifyShortlistedCandidatesByDomain(domain: string) {
-  // 1. Query database for qualified applications
-  const shortlistedApplicants = await prisma.application.findMany({
-    where: {
-      domain: domain as any,
-      review1Passed: true,
-      stage: 'REVIEW1'
-    },
+export async function notifyFinalInterviewCandidates() {
+  const applicants = await prisma.application.findMany({
+    where: { stage: 'REVIEW2' },
     include: { user: true }
   });
 
-  console.log(`Found ${shortlistedApplicants.length} applicants to notify.`);
-
-  // 2. Send emails with a safe delay between deliveries
-  for (const app of shortlistedApplicants) {
+  for (const app of applicants) {
     try {
-      await sendShortlistEmail({
+      await sendFinalShortlistEmail({
         name: app.user.name,
         email: app.user.email,
-        shortlisted: true
+        isShortlisted: app.review2Passed
       });
       console.log(`[SUCCESS] Notified: ${app.user.email}`);
-      
-      // 1.5 second throttle between SMTP dispatches
       await sleep(1500);
     } catch (err: any) {
       console.error(`[FAILED] Could not send to ${app.user.email}:`, err.message);
-      // Continue loop without crashing entire process
     }
   }
 }
@@ -129,69 +147,86 @@ export async function notifyShortlistedCandidatesByDomain(domain: string) {
 
 | Step | File | Role & Behavior |
 | :--- | :--- | :--- |
-| **1. Entry Point** | [`index.js`](./index.js) / [`index.d.ts`](./index.d.ts) | Public API facade. Re-exports `sendShortlistEmail`, `prepareEmail`, `validateApplicant`, and mailer utilities. Provides TypeScript types. |
-| **2. Validation** | [`validation.js`](./validation.js) | Validates input structure using `validateApplicant()`. Requires non-empty string `name`, RFC email regex format, and strict boolean `shortlisted` (with legacy `status` fallback). |
-| **3. Templating** | [`emailService.js`](./emailService.js) | Constructs email content using `prepareEmail()`. Builds transactional subject lines, plain text fallbacks, and mobile-friendly HTML tables. |
-| **4. Transport** | [`mailer.js`](./mailer.js) | Manages the Nodemailer Gmail transporter, loads environment credentials from `.env`, injects deliverability headers (`Reply-To`, `X-Priority: 3`), and dispatches SMTP calls. |
-| **5. Testing** | [`emailer.test.js`](./emailer.test.js) | Automated test suite (16 unit & integration tests) covering validation, template rendering, and mocked SMTP delivery. |
-| **6. Manual Tool** | [`batchTest.js`](./batchTest.js) | Interactive terminal CLI for real deliverability tests, recipient warm-up, and spam troubleshooting. |
+| **1. Entry Point** | [`index.js`](./index.js) / [`index.d.ts`](./index.d.ts) | Public API facade. Re-exports `sendShortlistEmail`, `sendFinalShortlistEmail`, `prepareEmail`, `prepareFinalShortlistEmail`, validation functions, and mailer utilities. |
+| **2. Validation** | [`validation.js`](./validation.js) | Validates payloads. `validateApplicant()` for initial stage; `validateFinalShortlistDetails()` for final outcomes. |
+| **3. Initial Templating** | [`emailService.js`](./emailService.js) | Handles initial round templates (`prepareEmail()`) — interview slots and initial rejections. |
+| **4. Final Templating** | [`FinalShortlistEmailer.js`](./FinalShortlistEmailer.js) | Handles final interview outcomes (`prepareFinalShortlistEmail()` / `sendFinalShortlistEmail()`) — final selection and post-interview updates. |
+| **5. Transport** | [`mailer.js`](./mailer.js) | Manages Nodemailer Gmail transporter, `.env` credentials, deliverability headers, and SMTP dispatches. |
+| **6. Testing** | [`emailer.test.js`](./emailer.test.js) | Automated test suite (34 unit & integration tests) covering all validation cases, templates, and mocked deliveries. |
+| **7. Manual Testers** | [`batchTest.js`](./batchTest.js) & [`batchTestFinalShortlist.js`](./batchTestFinalShortlist.js) | Standalone interactive CLIs for real deliverability tests, recipient warm-up, and spam troubleshooting. |
 
-### Payload Schema & Validation (`validation.js`)
+### Initial Shortlist Schema (`validation.js`)
 
-All inputs to `sendShortlistEmail(applicant)` and `prepareEmail(applicant)` are validated by `validateApplicant()` before processing:
+Used by `sendShortlistEmail(applicant)` and `prepareEmail(applicant)`:
 
 | Field | Type | Required | Validation Rules | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| `name` | `string` | **Yes** | Non-empty string (trimmed) | Candidate's full name. |
-| `email` | `string` | **Yes** | RFC regex format (`^[^\s@]+@[^\s@]+\.[^\s@]+$`) | Destination email address. |
+| `name` | `string` | **Yes** | Non-empty string (trimmed) | Candidate full name. |
+| `email` | `string` | **Yes** | RFC regex format | Destination email address. |
 | `shortlisted` | `boolean` | **Yes** | Strict boolean (`true` or `false`) | `true` sends Interview Invitation; `false` sends Polite Rejection. |
-| `status` | `string` | Optional | `"shortlisted"` or `"not shortlisted"` | Legacy backwards-compatibility string if `shortlisted` boolean is omitted. |
+| `status` | `string` | Optional | `"shortlisted"` or `"not shortlisted"` | Legacy string fallback. |
+
+### Final Shortlist Schema (`validation.js`)
+
+Used by `sendFinalShortlistEmail(details)` and `prepareFinalShortlistEmail(details)`:
+
+| Field | Type | Required | Validation Rules | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `name` | `string` | **Yes** | Non-empty string (trimmed) | Candidate full name. |
+| `email` | `string` | **Yes** | RFC regex format | Destination email address. |
+| `isShortlisted` | `boolean` | **Yes** | Strict boolean (`true` or `false`) | `true`: Final selection confirmation.<br/>`false`: Final application update. |
+| `groupLink` | `string` | Optional | Optional string | WhatsApp community/group invite link (rendered only when `isShortlisted: true`). Ignored on rejection. |
 
 ---
 
-## Deliverability Batch Tester (`batchTest.js`)
-
-### Purpose
-Before deploying or triggering automated emails to hundreds of real student applicants, `batchTest.js` provides an **interactive, risk-free staging sandbox** to:
-1. Verify real-world SMTP authentication and Google App Password setup.
-2. Confirm deliverability across multiple recipient inboxes (Gmail, institutional, Outlook).
-3. Test inbox placement (verifying whether emails land in **Primary Inbox**, **Promotions**, or **Spam**).
-4. Inspect visual layout across mobile and desktop mail clients without touching the database.
+## Deliverability Batch Testers
 
 ### Safety Features
-- **Schema Validation**: Validates candidate objects against `validateApplicant` (skipping entries with invalid email regex, empty names, or missing shortlisted flags with clear terminal warnings).
+- **Schema Validation**: Validates candidate objects against the respective schema before queuing.
 - **Empty Email Detection**: Automatically skips entries with missing or blank emails.
 - **Duplicate Prevention**: Normalizes email addresses (trimmed & lowercased) and skips duplicate recipients within the same execution.
 - **Confirmation Gate**: Halts execution and requires explicit terminal input (`yes` or `y`) before dispatching any real emails.
-- **Configurable Throttling**: Customizable `BATCH_SIZE`, `DELAY_BETWEEN_EMAILS_MS`, and `DELAY_BETWEEN_BATCHES_MS` to avoid bursting the SMTP server.
-- **Fault-Tolerant Loop**: Catches per-recipient SMTP errors and continues with the rest of the queue without throwing or aborting.
-- **Deliverability Health Check**: Warns if `EMAIL_FROM` inside `<...>` does not match `EMAIL_USER` (preventing Gmail spoofing detection).
+- **Configurable Throttling**: Customizable `BATCH_SIZE`, `DELAY_BETWEEN_EMAILS_MS`, and `DELAY_BETWEEN_BATCHES_MS`.
+- **Fault-Tolerant Loop**: Catches per-recipient SMTP errors and continues with the rest of the queue.
+- **Standalone Execution**: Safe to import without side effects (`if (require.main === module)`).
 
-### How to Use
-1. Open [`src/emailer/batchTest.js`](./batchTest.js) and populate the `candidates` array:
+### Initial Shortlist Tester (`batchTest.js`)
+
+1. Open [`src/emailer/batchTest.js`](./batchTest.js) and populate `candidates`:
+   ```javascript
+   const candidates = [
+     { name: "Test Candidate 1", email: "candidate1@example.com", shortlisted: true },
+     { name: "Test Candidate 2", email: "candidate2@example.com", shortlisted: false }
+   ];
+   ```
+2. Run from project root:
+   ```bash
+   node src/emailer/batchTest.js
+   ```
+
+### Final Shortlist Tester (`batchTestFinalShortlist.js`)
+
+1. Open [`src/emailer/batchTestFinalShortlist.js`](./batchTestFinalShortlist.js) and populate `candidates`:
    ```javascript
    const candidates = [
      {
        name: "Test Candidate 1",
-       email: "jhon.doe2023@gmail.com",
-       shortlisted: true  // Receives Interview Invitation
+       email: "candidate1@example.com",
+       isShortlisted: true,
+       groupLink: "https://chat.whatsapp.com/example"
      },
      {
        name: "Test Candidate 2",
-       email: "jhon.doe2023@gmail.com",
-       shortlisted: false // Receives Polite Rejection
+       email: "candidate2@example.com",
+       isShortlisted: false
      }
    ];
    ```
-2. Execute the script from the project root:
+2. Run from project root:
    ```bash
-   node src/emailer/batchTest.js
+   node src/emailer/batchTestFinalShortlist.js
    ```
 3. Type `yes` when prompted by the terminal confirmation.
-4. Follow the warm-up instructions printed in the summary if any email is placed in the Spam folder during initial testing:
-   - Click **"Report not spam"** in the recipient inbox.
-   - Reply to the email with a brief acknowledgement.
-   - Add the sender to Google Contacts.
 
 ---
 
@@ -223,4 +258,4 @@ Run the built-in Node.js test runner suite:
 npm test
 ```
 
-This executes all 16 tests in [`src/emailer/emailer.test.js`](./emailer.test.js) without dispatching any real network emails (using mocked transporters).
+This executes all 38 tests in [`src/emailer/emailer.test.js`](./emailer.test.js) without dispatching real network emails (using mocked transporters).
