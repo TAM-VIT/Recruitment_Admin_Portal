@@ -4,26 +4,44 @@
  *
  * Usage in Backend:
  * ```javascript
- * const { sendShortlistEmail } = require('./emailer');
+ * const { sendShortlistEmail, sendFinalShortlistEmail } = require('./emailer');
  * // or in TypeScript / ESM:
- * import { sendShortlistEmail } from './emailer';
+ * import { sendShortlistEmail, sendFinalShortlistEmail } from './emailer';
  *
+ * // Initial Application Shortlisting
  * await sendShortlistEmail({
  *   name: 'Jhon Doe',
  *   email: 'jhon.doe2023@example.com',
  *   shortlisted: true // sends interview shortlist email
  * });
  *
- * await sendShortlistEmail({
- *   name: 'Jane Doe',
- *   email: 'jhon.doe2023@example.com',
- *   shortlisted: false // sends polite rejection email
+ * // Final Interview Outcome (Selection / Rejection)
+ * await sendFinalShortlistEmail({
+ *   name: 'Rahul Sharma',
+ *   email: 'rahul@vitstudent.ac.in',
+ *   isShortlisted: true, // sends final selection confirmation email
+ *   groupLink: 'https://chat.whatsapp.com/example'
+ * });
+ *
+ * await sendFinalShortlistEmail({
+ *   name: 'Rahul Sharma',
+ *   email: 'rahul@vitstudent.ac.in',
+ *   isShortlisted: false // sends final rejection notification email
  * });
  * ```
  */
 
 const { sendShortlistEmail, prepareEmail } = require("./emailService");
-const { validateApplicant, isValidApplicant } = require("./validation");
+const {
+    sendFinalShortlistEmail,
+    prepareFinalShortlistEmail
+} = require("./FinalShortlistEmailer");
+const {
+    validateApplicant,
+    isValidApplicant,
+    validateFinalShortlistDetails,
+    isValidFinalShortlistDetails
+} = require("./validation");
 const {
     sendEmail,
     transporter,
@@ -33,15 +51,21 @@ const {
 } = require("./mailer");
 
 module.exports = {
-    // Primary API for backend developers
+    // Primary API for initial application shortlisting
     sendShortlistEmail,
 
-    // Template inspection / dry-run helper
+    // Primary API for final interview outcome notifications
+    sendFinalShortlistEmail,
+
+    // Template inspection / dry-run helpers
     prepareEmail,
+    prepareFinalShortlistEmail,
 
     // Validation utilities
     validateApplicant,
     isValidApplicant,
+    validateFinalShortlistDetails,
+    isValidFinalShortlistDetails,
 
     // Low-level mailer & transporter helpers
     sendEmail,

@@ -74,7 +74,70 @@ function isValidApplicant(applicant) {
     return validateApplicant(applicant).isValid;
 }
 
+/**
+ * Validates candidate details for the final interview outcome notification.
+ *
+ * Expected Schema:
+ * {
+ *   "name": "Candidate Name",
+ *   "email": "candidate@vitstudent.ac.in",
+ *   "isShortlisted": true | false,
+ *   "groupLink"?: "https://chat.whatsapp.com/example"
+ * }
+ *
+ * @param {any} details
+ * @returns {{ isValid: boolean, error?: string }}
+ */
+function validateFinalShortlistDetails(details) {
+    if (!details || typeof details !== "object" || Array.isArray(details)) {
+        return {
+            isValid: false,
+            error: "Candidate details must be a non-null JSON object."
+        };
+    }
+
+    // Name validation
+    if (typeof details.name !== "string" || details.name.trim() === "") {
+        return {
+            isValid: false,
+            error: "Field 'name' is required and must be a non-empty string."
+        };
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (typeof details.email !== "string" || !emailRegex.test(details.email.trim())) {
+        return {
+            isValid: false,
+            error: "Field 'email' is required and must be a valid email address."
+        };
+    }
+
+    // isShortlisted status validation (strictly boolean true or false)
+    if (typeof details.isShortlisted !== "boolean") {
+        return {
+            isValid: false,
+            error: "Field 'isShortlisted' is required and must be a boolean (true or false)."
+        };
+    }
+
+    return {
+        isValid: true
+    };
+}
+
+/**
+ * Boolean helper for final shortlist validation.
+ * @param {any} details
+ * @returns {boolean}
+ */
+function isValidFinalShortlistDetails(details) {
+    return validateFinalShortlistDetails(details).isValid;
+}
+
 module.exports = {
     validateApplicant,
-    isValidApplicant
+    isValidApplicant,
+    validateFinalShortlistDetails,
+    isValidFinalShortlistDetails
 };
